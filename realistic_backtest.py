@@ -1,40 +1,9 @@
 import argparse
 import pandas as pd
 import numpy as np
-import ta
 from fetch_data import load_ohlcv
 from trading_strategies import BacktestStrategy
-
-
-def load_data(symbol: str) -> pd.DataFrame:
-    """Load OHLCV data from live source and compute indicators"""
-    # Load live data using investiny
-    df = load_ohlcv(symbol, start='2024-01-01')
-    # Convert index to match expected format
-    df.index.name = 'date'
-    # Rename columns to lowercase
-    df.columns = [col.lower().replace(' ', '_') for col in df.columns]
-    
-    # Compute indicators
-    df['ema5'] = ta.trend.ema_indicator(df['close'], window=5)
-    df['ema10'] = ta.trend.ema_indicator(df['close'], window=10)
-    df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
-    df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
-    df['ema100'] = ta.trend.ema_indicator(df['close'], window=100)
-    df['ema200'] = ta.trend.ema_indicator(df['close'], window=200)
-    df['rsi14'] = ta.momentum.rsi(df['close'], window=14)
-    df['atr14'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=14)
-    
-    # Compute classic pivots
-    df['P'] = (df['high'].shift(1) + df['low'].shift(1) + df['close'].shift(1)) / 3
-    df['R1'] = 2 * df['P'] - df['low'].shift(1)
-    df['R2'] = df['P'] + (df['high'].shift(1) - df['low'].shift(1))
-    df['R3'] = df['high'].shift(1) + 2 * (df['P'] - df['low'].shift(1))
-    df['S1'] = 2 * df['P'] - df['high'].shift(1)
-    df['S2'] = df['P'] - (df['high'].shift(1) - df['low'].shift(1))
-    df['S3'] = df['low'].shift(1) - 2 * (df['high'].shift(1) - df['P'])
-    
-    return df
+from indicators import calculate_indicators
 
 
 def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd.Series, pd.Series]:
@@ -258,7 +227,9 @@ def main():
     
     # Load live data
     print(f"Loading live data for: {args.symbol}")
-    df = load_data(args.symbol)
+    df = load_ohlcv(args.symbol, "2024-01-01")
+
+    df = calculate_indicators(df)
     
     print(f"Loaded {len(df)} bars from {df.index[0]} to {df.index[-1]}")
     print(f"Price range: {df['close'].min():.0f} - {df['close'].max():.0f}")

@@ -6,62 +6,10 @@ Supports any Indonesian stock symbol (*.JK format)
 """
 
 import pandas as pd
-import numpy as np
-import ta
-from datetime import datetime
 import argparse
 from fetch_data import load_ohlcv
 from trading_strategies import LiveSignalStrategy
-
-
-def fetch_latest_data(symbol: str = "WIFI.JK", start_date: str = "2024-01-01") -> pd.DataFrame:
-    """Fetch latest data from investiny (Indonesian stock data source)"""
-    print(f"Fetching latest data for {symbol}...")
-    
-    try:
-        # Use investiny for Indonesian stock data
-        print("Using investiny data source...")
-        df = load_ohlcv(symbol, start=start_date)
-        
-        if df is None:
-            raise Exception("No data returned from load_ohlcv")
-        
-        # Convert to expected format
-        df.index.name = 'date'
-        df.columns = [col.lower().replace(' ', '_') for col in df.columns]
-        
-        print(f"Downloaded {len(df)} bars from {df.index[0].strftime('%Y-%m-%d')} to {df.index[-1].strftime('%Y-%m-%d')}")
-        return df
-        
-    except Exception as e:
-        raise Exception(f"Failed to fetch data for {symbol}: {e}")
-
-
-def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate all technical indicators"""
-    # EMAs
-    df['ema5'] = ta.trend.ema_indicator(df['close'], window=5)
-    df['ema10'] = ta.trend.ema_indicator(df['close'], window=10)
-    df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
-    df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
-    df['ema100'] = ta.trend.ema_indicator(df['close'], window=100)
-    df['ema200'] = ta.trend.ema_indicator(df['close'], window=200)
-    
-    # RSI and ATR
-    df['rsi14'] = ta.momentum.rsi(df['close'], window=14)
-    df['atr14'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=14)
-    
-    # Classic Pivot Points (using previous day's data)
-    df['P'] = (df['high'].shift(1) + df['low'].shift(1) + df['close'].shift(1)) / 3
-    df['R1'] = 2 * df['P'] - df['low'].shift(1)
-    df['R2'] = df['P'] + (df['high'].shift(1) - df['low'].shift(1))
-    df['R3'] = df['high'].shift(1) + 2 * (df['P'] - df['low'].shift(1))
-    df['S1'] = 2 * df['P'] - df['high'].shift(1)
-    df['S2'] = df['P'] - (df['high'].shift(1) - df['low'].shift(1))
-    df['S3'] = df['low'].shift(1) - 2 * (df['high'].shift(1) - df['P'])
-    
-    return df
-
+from indicators import calculate_indicators
 
 def check_breakout_signal(df: pd.DataFrame, symbol: str, cash: float = 1_000_000) -> dict:
     """Check for breakout entry signal using centralized strategy logic"""
@@ -177,7 +125,7 @@ def main():
     
     try:
         # Fetch latest data
-        df = fetch_latest_data(args.symbol, "2023-01-01")
+        df = load_ohlcv(args.symbol, "2023-01-01")
         
         # Calculate indicators
         df = calculate_indicators(df)
