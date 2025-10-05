@@ -1,15 +1,15 @@
 import argparse
 import pandas as pd
 import numpy as np
-import vectorbt as vbt
 import ta
 from fetch_data import load_ohlcv
+from trading_strategies import BacktestStrategy
 
 
 def load_data(symbol: str) -> pd.DataFrame:
     """Load OHLCV data from live source and compute indicators"""
     # Load live data using investiny
-    df = load_ohlcv(symbol, start='2023-01-01')
+    df = load_ohlcv(symbol, start='2024-01-01')
     # Convert index to match expected format
     df.index.name = 'date'
     # Rename columns to lowercase
@@ -38,44 +38,7 @@ def load_data(symbol: str) -> pd.DataFrame:
 
 
 def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd.Series, pd.Series]:
-    """Generate signals with realistic position sizing constraints"""
-    
-    if strategy_type == "pullback":
-        # IMPROVED: Use both R1 and R2 levels (same as live_signal.py)
-        entry_condition = (
-            # Option 1: Pullback to R1 (closer resistance, more frequent signals)
-            (((df['low'] <= df['R1'] * 1.01) & 
-              (df['high'] >= df['R1'] * 0.99) &
-              (df['close'] > df['R1']) &
-              (df['close'] > df['ema20'])) |
-             # Option 2: Pullback to R2 (stronger support, less frequent but more reliable)
-             ((df['low'] <= df['R2'] * 1.02) &
-              (df['high'] >= df['R2'] * 0.98) &
-              (df['close'] > df['ema20']))) &
-            (df['rsi14'] < 70) &                 # Normal overbought
-            df['R1'].notna() &
-            df['R2'].notna() &
-            df['atr14'].notna()
-        )
-    else:  # breakout
-        # IMPROVED: Use R1, R2, and R3 breakouts (progressive strength)
-        entry_condition = (
-            # Option 1: R1 breakout (early momentum, more frequent but riskier)
-            (((df['close'] > df['R1']) &
-              (df['rsi14'] > 35) &
-              (df['close'] > df['ema10'])) |
-             # Option 2: R2 breakout (confirmed momentum, balanced risk/reward)
-             ((df['close'] > df['R2']) &
-              (df['rsi14'] > 40) &
-              (df['close'] > df['ema20'])) |
-             # Option 3: R3 breakout (strong momentum, less frequent but more reliable)
-             ((df['close'] > df['R3']) &
-              (df['rsi14'] > 40))) &
-            df['R1'].notna() &
-            df['R2'].notna() &
-            df['R3'].notna() &
-            df['atr14'].notna()
-        )
+    """Generate signals with realistic position sizing constraints using centralized strategy logic"""
     
     entries = pd.Series(False, index=df.index)
     exits = pd.Series(False, index=df.index)
@@ -86,97 +49,43 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
     for i in range(len(df)):
         row = df.iloc[i]
         
-        if not position_open and entry_condition.iloc[i]:
-            position_open = True
-            entries.iloc[i] = True
-            days_held = 0
-            
-            # Store which level was triggered for pullback strategy
+        if not position_open:
+            # Check for entry signal using centralized logic
             if strategy_type == "pullback":
-                # Check which level triggered the signal (same logic as live_signal.py)
-                r1_triggered = (row['low'] <= row['R1'] * 1.01) and (row['high'] >= row['R1'] * 0.99) and (row['close'] > row['R1'])
-                r2_triggered = (row['low'] <= row['R2'] * 1.02) and (row['high'] >= row['R2'] * 0.98)
-                
-                # Store triggered level info for exit calculation
-                if r1_triggered and not r2_triggered:
-                    df.loc[df.index[i], 'triggered_level'] = 'R1'
-                else:
-                    df.loc[df.index[i], 'triggered_level'] = 'R2'
+                has_signal = BacktestStrategy.has_pullback_signal(row)
             else:  # breakout
-                # Check which resistance level was broken
-                r1_breakout = (row['close'] > row['R1']) and (row['rsi14'] > 35) and (row['close'] > row['ema10'])
-                r2_breakout = (row['close'] > row['R2']) and (row['rsi14'] > 40) and (row['close'] > row['ema20']) 
-                r3_breakout = (row['close'] > row['R3']) and (row['rsi14'] > 40)
+                has_signal = BacktestStrategy.has_breakout_signal(row)
+            
+            if has_signal:
+                position_open = True
+                entries.iloc[i] = True
+                days_held = 0
                 
-                # Priority: R3 > R2 > R1 (stronger breakout preferred)
-                if r3_breakout:
-                    df.loc[df.index[i], 'triggered_level'] = 'R3'
-                elif r2_breakout:
-                    df.loc[df.index[i], 'triggered_level'] = 'R2'
-                else:
-                    df.loc[df.index[i], 'triggered_level'] = 'R1'
+                # Store which level was triggered for exit calculation
+                if strategy_type == "pullback":
+                    pullback_status = BacktestStrategy.check_pullback_conditions(row)
+                    triggered_level = BacktestStrategy.determine_pullback_level(pullback_status)
+                    df.loc[df.index[i], 'triggered_level'] = triggered_level
+                else:  # breakout
+                    breakout_status = BacktestStrategy.check_breakout_conditions(row)
+                    triggered_level = BacktestStrategy.determine_breakout_level(breakout_status)
+                    df.loc[df.index[i], 'triggered_level'] = triggered_level
             
         elif position_open:
             days_held += 1
             
-            # Calculate SL/TP for current position
+            # Get entry details
             entry_price = df['close'].iloc[i - days_held]  # Price when entered
-            atr = row['atr14']
+            entry_idx = i - days_held
+            triggered_level = df.iloc[entry_idx].get('triggered_level', 'R3' if strategy_type == 'breakout' else 'R2')
             
-            if strategy_type == "pullback":
-                # Get the triggered level from entry
-                entry_idx = i - days_held
-                triggered_level = df.iloc[entry_idx].get('triggered_level', 'R2')
-                
-                if triggered_level == 'R1':
-                    # R1 pullback - closer entry, tighter stops
-                    sl_price = entry_price - 1.0 * atr
-                    tp_price = entry_price + 2.0 * atr
-                    max_days = 6
-                else:
-                    # R2 pullback - stronger support, wider stops
-                    sl_price = entry_price - 1.5 * atr
-                    tp_price = entry_price + 2.5 * atr
-                    max_days = 8
-            else:  # breakout
-                # Get the triggered level from entry
-                entry_idx = i - days_held
-                triggered_level = df.iloc[entry_idx].get('triggered_level', 'R3')
-                
-                if triggered_level == 'R1':
-                    # R1 breakout - early momentum, tighter management
-                    sl_price = entry_price - 0.8 * atr
-                    tp_price = entry_price + 1.5 * atr
-                    max_days = 4
-                elif triggered_level == 'R2':
-                    # R2 breakout - confirmed momentum, balanced approach
-                    sl_price = entry_price - 1.0 * atr
-                    tp_price = entry_price + 2.0 * atr
-                    max_days = 6
-                else:  # R3
-                    # R3 breakout - strong momentum, wider stops
-                    sl_price = entry_price - 1.2 * atr
-                    tp_price = entry_price + 2.5 * atr
-                    max_days = 8
+            # Check if position should exit using centralized logic
+            should_exit, exit_reason = BacktestStrategy.should_exit_position(
+                row, entry_price, strategy_type, triggered_level, days_held
+            )
             
-            exit_triggered = False
-            
-            # Stop Loss hit
-            if row['low'] <= sl_price:
+            if should_exit:
                 exits.iloc[i] = True
-                exit_triggered = True
-                
-            # Take Profit hit
-            elif row['high'] >= tp_price:
-                exits.iloc[i] = True
-                exit_triggered = True
-                
-            # Time-based exit
-            elif days_held >= max_days:
-                exits.iloc[i] = True
-                exit_triggered = True
-            
-            if exit_triggered:
                 position_open = False
                 days_held = 0
     
@@ -185,34 +94,14 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
 
 
 def calculate_realistic_position_size(available_cash: float, entry_price: float, sl_price: float, risk_pct: float = 0.02):
-    """Calculate realistic position size with proper cash management"""
+    """Calculate realistic position size with proper cash management - using centralized logic"""
+    shares, investment = BacktestStrategy.calculate_position_size(available_cash, entry_price, sl_price, risk_pct)
     
-    # Max risk amount = 2% of CURRENT available cash
-    max_risk = available_cash * risk_pct
-    
-    # Risk per share
-    risk_per_share = abs(entry_price - sl_price)
-    
-    if risk_per_share <= 0:
-        return 0
-    
-    # Calculate shares based on risk
-    shares_by_risk = int(max_risk / risk_per_share)
-    
-    # Calculate max shares we can afford with available cash
-    # Leave 5% cash buffer
+    # Apply cash constraint (leave 5% buffer)
     max_investment = available_cash * 0.95
-    shares_by_cash = int(max_investment / entry_price)
-    
-    # Take the minimum to ensure we don't exceed cash or risk limits
-    final_shares = min(shares_by_risk, shares_by_cash)
-    
-    # Validate
-    actual_investment = final_shares * entry_price
-    actual_risk = final_shares * risk_per_share
-    actual_risk_pct = actual_risk / available_cash if available_cash > 0 else 0
-    
-    return final_shares, actual_investment, actual_risk, actual_risk_pct
+    if investment > max_investment:
+        shares = int(max_investment / entry_price)
+    return shares
 
 
 def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: float = 1_000_000):
@@ -245,60 +134,42 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
         portfolio_value.append(current_value)
         
         if entries.iloc[i] and not position_open:
-            # Enter position
+            # Enter position using centralized logic
             atr = row['atr14']
             
+            # Determine triggered level using centralized logic
             if strategy_type == "pullback":
-                # Determine which level triggered (same logic as generate_realistic_signals)
-                r1_triggered = (row['low'] <= row['R1'] * 1.01) and (row['high'] >= row['R1'] * 0.99) and (row['close'] > row['R1'])
-                r2_triggered = (row['low'] <= row['R2'] * 1.02) and (row['high'] >= row['R2'] * 0.98)
-                
-                if r1_triggered and not r2_triggered:
-                    # R1 pullback
-                    entry_level = "R1"
-                    sl_price = current_price - 1.0 * atr
-                    tp_price = current_price + 2.0 * atr
-                else:
-                    # R2 pullback
-                    entry_level = "R2"
-                    sl_price = current_price - 1.5 * atr
-                    tp_price = current_price + 2.5 * atr
+                pullback_status = BacktestStrategy.check_pullback_conditions(row)
+                entry_level = BacktestStrategy.determine_pullback_level(pullback_status)
             else:  # breakout
-                # Determine which resistance level was broken (priority: R3 > R2 > R1)
-                r1_breakout = (row['close'] > row['R1']) and (row['rsi14'] > 35) and (row['close'] > row['ema10'])
-                r2_breakout = (row['close'] > row['R2']) and (row['rsi14'] > 40) and (row['close'] > row['ema20'])
-                r3_breakout = (row['close'] > row['R3']) and (row['rsi14'] > 40)
-                
-                if r3_breakout:
-                    # R3 breakout - strong momentum
-                    entry_level = "R3"
-                    sl_price = current_price - 1.2 * atr
-                    tp_price = current_price + 2.5 * atr
-                elif r2_breakout:
-                    # R2 breakout - confirmed momentum  
-                    entry_level = "R2"
-                    sl_price = current_price - 1.0 * atr
-                    tp_price = current_price + 2.0 * atr
-                else:
-                    # R1 breakout - early momentum
-                    entry_level = "R1"
-                    sl_price = current_price - 0.8 * atr
-                    tp_price = current_price + 1.5 * atr
+                breakout_status = BacktestStrategy.check_breakout_conditions(row)
+                entry_level = BacktestStrategy.determine_breakout_level(breakout_status)
+            
+            # Get strategy parameters using centralized logic
+            if strategy_type == "pullback":
+                # For pullback, entry price is the support level
+                entry_price = row['R1'] if entry_level == 'R1' else row['R2']
+                params = BacktestStrategy.get_pullback_parameters(entry_level, atr, entry_price)
+            else:  # breakout
+                entry_price = current_price
+                params = BacktestStrategy.get_breakout_parameters(entry_level, atr, entry_price)
+            
+            sl_price = params['stop_loss']
+            tp_price = params['take_profit']
             
             # Calculate position size based on CURRENT available cash
-            shares, investment, risk_amount, risk_pct = calculate_realistic_position_size(
-                cash, current_price, sl_price, 0.02
-            )
+            shares = calculate_realistic_position_size(cash, entry_price, sl_price, 0.02)
+            investment = shares * entry_price
+            risk_amount = shares * abs(entry_price - sl_price)
+            risk_pct = risk_amount / cash if cash > 0 else 0
             
             if shares > 0 and investment <= cash:
                 # Execute trade
                 shares_held = shares
                 cash -= investment
-                entry_price = current_price
-                entry_date = date
                 position_open = True
                 
-                print(f"ENTRY: {date.strftime('%Y-%m-%d')} @ {current_price:.0f} ({entry_level}), "
+                print(f"ENTRY: {date.strftime('%Y-%m-%d')} @ {entry_price:.0f} ({entry_level}), "
                       f"Shares: {shares}, Investment: {investment:,.0f}, "
                       f"Risk: {risk_pct*100:.2f}%, Available Cash: {cash:,.0f}")
         

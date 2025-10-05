@@ -11,9 +11,10 @@ import ta
 from datetime import datetime
 import argparse
 from fetch_data import load_ohlcv
+from trading_strategies import LiveSignalStrategy
 
 
-def fetch_latest_data(symbol: str = "WIFI.JK", start_date: str = "2023-01-01") -> pd.DataFrame:
+def fetch_latest_data(symbol: str = "WIFI.JK", start_date: str = "2024-01-01") -> pd.DataFrame:
     """Fetch latest data from investiny (Indonesian stock data source)"""
     print(f"Fetching latest data for {symbol}...")
     
@@ -21,6 +22,9 @@ def fetch_latest_data(symbol: str = "WIFI.JK", start_date: str = "2023-01-01") -
         # Use investiny for Indonesian stock data
         print("Using investiny data source...")
         df = load_ohlcv(symbol, start=start_date)
+        
+        if df is None:
+            raise Exception("No data returned from load_ohlcv")
         
         # Convert to expected format
         df.index.name = 'date'
@@ -59,158 +63,14 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def calculate_position_size(available_cash: float, entry_price: float, sl_price: float, risk_pct: float = 0.02):
-    """Calculate position size with 2% risk management"""
-    max_risk = available_cash * risk_pct
-    risk_per_share = abs(entry_price - sl_price)
-    
-    if risk_per_share <= 0:
-        return 0, 0
-    
-    shares_by_risk = int(max_risk / risk_per_share)
-    max_investment = available_cash * 0.95  # 5% cash buffer
-    shares_by_cash = int(max_investment / entry_price)
-    
-    final_shares = min(shares_by_risk, shares_by_cash)
-    actual_investment = final_shares * entry_price
-    
-    return final_shares, actual_investment
-
-
 def check_breakout_signal(df: pd.DataFrame, symbol: str, cash: float = 1_000_000) -> dict:
-    """Check for breakout entry signal (multi-level R1/R2/R3 strategy)"""
-    latest = df.iloc[-1]
-    
-    # Multi-level breakout conditions (same as improved backtest)
-    r1_breakout = (latest['close'] > latest['R1']) and (latest['rsi14'] > 35) and (latest['close'] > latest['ema10'])
-    r2_breakout = (latest['close'] > latest['R2']) and (latest['rsi14'] > 40) and (latest['close'] > latest['ema20'])
-    r3_breakout = (latest['close'] > latest['R3']) and (latest['rsi14'] > 40)
-    
-    breakout_signal = (r1_breakout or r2_breakout or r3_breakout) and pd.notna(latest['R1']) and pd.notna(latest['R2']) and pd.notna(latest['R3']) and pd.notna(latest['atr14'])
-    
-    signal_data = {
-        'date': latest.name.strftime('%Y-%m-%d'),
-        'symbol': symbol,
-        'strategy': 'BREAKOUT',
-        'signal': 'BUY' if breakout_signal else 'HOLD',
-        'current_price': latest['close'],
-        'r1_level': latest['R1'],
-        'r2_level': latest['R2'],
-        'r3_level': latest['R3'],
-        'rsi14': latest['rsi14'],
-        'atr14': latest['atr14']
-    }
-    
-    if breakout_signal:
-        # Determine which level was broken (priority: R3 > R2 > R1)
-        if r3_breakout:
-            # R3 breakout - strong momentum
-            entry_level = "R3"
-            sl_price = latest['close'] - 1.2 * latest['atr14']
-            tp_price = latest['close'] + 2.5 * latest['atr14']
-            max_hold_days = 8
-        elif r2_breakout:
-            # R2 breakout - confirmed momentum
-            entry_level = "R2"
-            sl_price = latest['close'] - 1.0 * latest['atr14']
-            tp_price = latest['close'] + 2.0 * latest['atr14']
-            max_hold_days = 6
-        else:
-            # R1 breakout - early momentum
-            entry_level = "R1"
-            sl_price = latest['close'] - 0.8 * latest['atr14']
-            tp_price = latest['close'] + 1.5 * latest['atr14']
-            max_hold_days = 4
-        
-        # Calculate position size
-        shares, investment = calculate_position_size(cash, latest['close'], sl_price, 0.02)
-        
-        risk_amount = shares * (latest['close'] - sl_price)
-        risk_pct = (risk_amount / cash) * 100
-        
-        signal_data.update({
-            'entry_price': latest['close'],
-            'entry_level': entry_level,
-            'stop_loss': sl_price,
-            'take_profit': tp_price,
-            'shares': shares,
-            'investment': investment,
-            'risk_amount': risk_amount,
-            'risk_percent': risk_pct,
-            'max_hold_days': max_hold_days
-        })
-    
-    return signal_data
+    """Check for breakout entry signal using centralized strategy logic"""
+    return LiveSignalStrategy.generate_breakout_signal(df, symbol, cash)
 
 
 def check_pullback_signal(df: pd.DataFrame, symbol: str, cash: float = 1_000_000) -> dict:
-    """Check for pullback entry signal (alternative strategy)"""
-    latest = df.iloc[-1]
-    
-    # Pullback conditions (improved with R1 and R2 levels)
-    pullback_signal = (
-        # Option 1: Pullback to R1 (closer resistance, more frequent signals)
-        ((latest['low'] <= latest['R1'] * 1.01) and 
-         (latest['high'] >= latest['R1'] * 0.99) and
-         (latest['close'] > latest['R1']) and
-         (latest['close'] > latest['ema20'])) or
-        # Option 2: Pullback to R2 (stronger support, less frequent but more reliable)
-        ((latest['low'] <= latest['R2'] * 1.02) and
-         (latest['high'] >= latest['R2'] * 0.98) and
-         (latest['close'] > latest['ema20']))
-    ) and (latest['rsi14'] < 70) and pd.notna(latest['R1']) and pd.notna(latest['R2']) and pd.notna(latest['atr14'])
-    
-    signal_data = {
-        'date': latest.name.strftime('%Y-%m-%d'),
-        'symbol': symbol,
-        'strategy': 'PULLBACK',
-        'signal': 'BUY' if pullback_signal else 'HOLD',
-        'current_price': latest['close'],
-        'r1_level': latest['R1'],
-        'r2_level': latest['R2'],
-        'ema20': latest['ema20'],
-        'rsi14': latest['rsi14'],
-        'atr14': latest['atr14']
-    }
-    
-    if pullback_signal:
-        # Determine which level triggered the signal
-        r1_triggered = (latest['low'] <= latest['R1'] * 1.01) and (latest['high'] >= latest['R1'] * 0.99) and (latest['close'] > latest['R1'])
-        r2_triggered = (latest['low'] <= latest['R2'] * 1.02) and (latest['high'] >= latest['R2'] * 0.98)
-        
-        # Calculate SL/TP levels based on triggered level
-        if r1_triggered and not r2_triggered:
-            # R1 pullback - closer entry, tighter stops
-            entry_price = latest['R1']
-            sl_price = entry_price - 1.0 * latest['atr14']  # 1 ATR stop loss
-            tp_price = entry_price + 2.0 * latest['atr14']  # 2 ATR take profit
-            entry_level = "R1"
-        else:
-            # R2 pullback - stronger support, wider stops
-            entry_price = latest['R2']
-            sl_price = entry_price - 1.5 * latest['atr14']  # 1.5 ATR stop loss
-            tp_price = entry_price + 2.5 * latest['atr14']  # 2.5 ATR take profit
-            entry_level = "R2"
-        
-        # Calculate position size
-        shares, investment = calculate_position_size(cash, entry_price, sl_price, 0.02)
-        
-        risk_amount = shares * (entry_price - sl_price)
-        risk_pct = (risk_amount / cash) * 100
-        
-        signal_data.update({
-            'entry_price': entry_price,
-            'entry_level': entry_level,
-            'stop_loss': sl_price,
-            'take_profit': tp_price,
-            'shares': shares,
-            'investment': investment,
-            'risk_amount': risk_amount,
-            'risk_percent': risk_pct,
-            'max_hold_days': 8
-        })
-    
-    return signal_data
+    """Check for pullback entry signal using centralized strategy logic"""
+    return LiveSignalStrategy.generate_pullback_signal(df, symbol, cash)
 
 
 def display_signal(signal: dict):
