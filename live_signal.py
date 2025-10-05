@@ -78,16 +78,15 @@ def calculate_position_size(available_cash: float, entry_price: float, sl_price:
 
 
 def check_breakout_signal(df: pd.DataFrame, symbol: str, cash: float = 1_000_000) -> dict:
-    """Check for breakout entry signal (proven strategy)"""
+    """Check for breakout entry signal (multi-level R1/R2/R3 strategy)"""
     latest = df.iloc[-1]
     
-    # Breakout conditions (same as backtest)
-    breakout_signal = (
-        (latest['close'] > latest['R3']) and
-        (latest['rsi14'] > 40) and
-        pd.notna(latest['R3']) and
-        pd.notna(latest['atr14'])
-    )
+    # Multi-level breakout conditions (same as improved backtest)
+    r1_breakout = (latest['close'] > latest['R1']) and (latest['rsi14'] > 35) and (latest['close'] > latest['ema10'])
+    r2_breakout = (latest['close'] > latest['R2']) and (latest['rsi14'] > 40) and (latest['close'] > latest['ema20'])
+    r3_breakout = (latest['close'] > latest['R3']) and (latest['rsi14'] > 40)
+    
+    breakout_signal = (r1_breakout or r2_breakout or r3_breakout) and pd.notna(latest['R1']) and pd.notna(latest['R2']) and pd.notna(latest['R3']) and pd.notna(latest['atr14'])
     
     signal_data = {
         'date': latest.name.strftime('%Y-%m-%d'),
@@ -95,32 +94,50 @@ def check_breakout_signal(df: pd.DataFrame, symbol: str, cash: float = 1_000_000
         'strategy': 'BREAKOUT',
         'signal': 'BUY' if breakout_signal else 'HOLD',
         'current_price': latest['close'],
+        'r1_level': latest['R1'],
+        'r2_level': latest['R2'],
         'r3_level': latest['R3'],
         'rsi14': latest['rsi14'],
         'atr14': latest['atr14']
     }
     
     if breakout_signal:
-        # Calculate SL/TP levels
-        entry_price = latest['close']  # Enter at current close (breakout confirmed)
-        sl_price = entry_price - 1.0 * latest['atr14']  # 1 ATR stop loss
-        tp_price = entry_price + 2.0 * latest['atr14']  # 2 ATR take profit
+        # Determine which level was broken (priority: R3 > R2 > R1)
+        if r3_breakout:
+            # R3 breakout - strong momentum
+            entry_level = "R3"
+            sl_price = latest['close'] - 1.2 * latest['atr14']
+            tp_price = latest['close'] + 2.5 * latest['atr14']
+            max_hold_days = 8
+        elif r2_breakout:
+            # R2 breakout - confirmed momentum
+            entry_level = "R2"
+            sl_price = latest['close'] - 1.0 * latest['atr14']
+            tp_price = latest['close'] + 2.0 * latest['atr14']
+            max_hold_days = 6
+        else:
+            # R1 breakout - early momentum
+            entry_level = "R1"
+            sl_price = latest['close'] - 0.8 * latest['atr14']
+            tp_price = latest['close'] + 1.5 * latest['atr14']
+            max_hold_days = 4
         
         # Calculate position size
-        shares, investment = calculate_position_size(cash, entry_price, sl_price, 0.02)
+        shares, investment = calculate_position_size(cash, latest['close'], sl_price, 0.02)
         
-        risk_amount = shares * (entry_price - sl_price)
+        risk_amount = shares * (latest['close'] - sl_price)
         risk_pct = (risk_amount / cash) * 100
         
         signal_data.update({
-            'entry_price': entry_price,
+            'entry_price': latest['close'],
+            'entry_level': entry_level,
             'stop_loss': sl_price,
             'take_profit': tp_price,
             'shares': shares,
             'investment': investment,
             'risk_amount': risk_amount,
             'risk_percent': risk_pct,
-            'max_hold_days': 6
+            'max_hold_days': max_hold_days
         })
     
     return signal_data
@@ -206,9 +223,33 @@ def display_signal(signal: dict):
     print(f"Current Price: Rp {signal['current_price']:,.0f}")
     
     if signal['strategy'] == 'BREAKOUT':
+        print(f"R1 Level: Rp {signal['r1_level']:,.0f}")
+        print(f"R2 Level: Rp {signal['r2_level']:,.0f}")
         print(f"R3 Level: Rp {signal['r3_level']:,.0f}")
-        status = "✅ ABOVE R3" if signal['current_price'] > signal['r3_level'] else "❌ BELOW R3"
-        print(f"Breakout Status: {status}")
+        
+        # Show breakout status for each level
+        r1_status = "✅ ABOVE R1" if signal['current_price'] > signal['r1_level'] else "❌ BELOW R1"
+        r2_status = "✅ ABOVE R2" if signal['current_price'] > signal['r2_level'] else "❌ BELOW R2"
+        r3_status = "✅ ABOVE R3" if signal['current_price'] > signal['r3_level'] else "❌ BELOW R3"
+        
+        print(f"Breakout Status:")
+        print(f"  {r1_status}")
+        print(f"  {r2_status}")
+        print(f"  {r3_status}")
+        
+        # Show which level is closest for potential breakout
+        r1_distance = abs(signal['current_price'] - signal['r1_level'])
+        r2_distance = abs(signal['current_price'] - signal['r2_level'])
+        r3_distance = abs(signal['current_price'] - signal['r3_level'])
+        
+        min_distance = min(r1_distance, r2_distance, r3_distance)
+        if min_distance == r1_distance:
+            closest_level = "R1"
+        elif min_distance == r2_distance:
+            closest_level = "R2"
+        else:
+            closest_level = "R3"
+        print(f"Closest Level: {closest_level} (distance: Rp {min_distance:,.0f})")
     else:  # PULLBACK
         print(f"R1 Level: Rp {signal['r1_level']:,.0f}")
         print(f"R2 Level: Rp {signal['r2_level']:,.0f}")
@@ -230,8 +271,17 @@ def display_signal(signal: dict):
         
         # Add timing guidance
         if signal['strategy'] == 'BREAKOUT':
+            entry_level_name = signal.get('entry_level', 'R3')
             print(f"⏰ TIMING: Execute immediately if during market hours")
-            print(f"📍 ACTION: Breakout confirmed - buy at current price")
+            print(f"📍 ACTION: {entry_level_name} breakout confirmed - buy at current price")
+            
+            # Add specific guidance based on breakout level
+            if entry_level_name == 'R1':
+                print(f"💡 STRATEGY: Early momentum entry - watch for quick moves")
+            elif entry_level_name == 'R2':
+                print(f"💡 STRATEGY: Confirmed breakout - balanced risk/reward")
+            else:  # R3
+                print(f"💡 STRATEGY: Strong momentum - high confidence trade")
         else:  # PULLBACK
             entry_level_name = signal.get('entry_level', 'R2')
             print(f"⏰ TIMING: Wait for price to reach {entry_level_name} level")

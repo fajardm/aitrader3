@@ -58,10 +58,21 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
             df['atr14'].notna()
         )
     else:  # breakout
-        # BALANCED: Original settings
+        # IMPROVED: Use R1, R2, and R3 breakouts (progressive strength)
         entry_condition = (
-            (df['close'] > df['R3']) &
-            (df['rsi14'] > 40) &                 # Basic momentum
+            # Option 1: R1 breakout (early momentum, more frequent but riskier)
+            (((df['close'] > df['R1']) &
+              (df['rsi14'] > 35) &
+              (df['close'] > df['ema10'])) |
+             # Option 2: R2 breakout (confirmed momentum, balanced risk/reward)
+             ((df['close'] > df['R2']) &
+              (df['rsi14'] > 40) &
+              (df['close'] > df['ema20'])) |
+             # Option 3: R3 breakout (strong momentum, less frequent but more reliable)
+             ((df['close'] > df['R3']) &
+              (df['rsi14'] > 40))) &
+            df['R1'].notna() &
+            df['R2'].notna() &
             df['R3'].notna() &
             df['atr14'].notna()
         )
@@ -91,6 +102,19 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
                     df.loc[df.index[i], 'triggered_level'] = 'R1'
                 else:
                     df.loc[df.index[i], 'triggered_level'] = 'R2'
+            else:  # breakout
+                # Check which resistance level was broken
+                r1_breakout = (row['close'] > row['R1']) and (row['rsi14'] > 35) and (row['close'] > row['ema10'])
+                r2_breakout = (row['close'] > row['R2']) and (row['rsi14'] > 40) and (row['close'] > row['ema20']) 
+                r3_breakout = (row['close'] > row['R3']) and (row['rsi14'] > 40)
+                
+                # Priority: R3 > R2 > R1 (stronger breakout preferred)
+                if r3_breakout:
+                    df.loc[df.index[i], 'triggered_level'] = 'R3'
+                elif r2_breakout:
+                    df.loc[df.index[i], 'triggered_level'] = 'R2'
+                else:
+                    df.loc[df.index[i], 'triggered_level'] = 'R1'
             
         elif position_open:
             days_held += 1
@@ -115,9 +139,25 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
                     tp_price = entry_price + 2.5 * atr
                     max_days = 8
             else:  # breakout
-                sl_price = entry_price - 1.0 * atr
-                tp_price = entry_price + 2.0 * atr
-                max_days = 6
+                # Get the triggered level from entry
+                entry_idx = i - days_held
+                triggered_level = df.iloc[entry_idx].get('triggered_level', 'R3')
+                
+                if triggered_level == 'R1':
+                    # R1 breakout - early momentum, tighter management
+                    sl_price = entry_price - 0.8 * atr
+                    tp_price = entry_price + 1.5 * atr
+                    max_days = 4
+                elif triggered_level == 'R2':
+                    # R2 breakout - confirmed momentum, balanced approach
+                    sl_price = entry_price - 1.0 * atr
+                    tp_price = entry_price + 2.0 * atr
+                    max_days = 6
+                else:  # R3
+                    # R3 breakout - strong momentum, wider stops
+                    sl_price = entry_price - 1.2 * atr
+                    tp_price = entry_price + 2.5 * atr
+                    max_days = 8
             
             exit_triggered = False
             
@@ -224,9 +264,26 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
                     sl_price = current_price - 1.5 * atr
                     tp_price = current_price + 2.5 * atr
             else:  # breakout
-                entry_level = "R3"
-                sl_price = current_price - 1.0 * atr
-                tp_price = current_price + 2.0 * atr
+                # Determine which resistance level was broken (priority: R3 > R2 > R1)
+                r1_breakout = (row['close'] > row['R1']) and (row['rsi14'] > 35) and (row['close'] > row['ema10'])
+                r2_breakout = (row['close'] > row['R2']) and (row['rsi14'] > 40) and (row['close'] > row['ema20'])
+                r3_breakout = (row['close'] > row['R3']) and (row['rsi14'] > 40)
+                
+                if r3_breakout:
+                    # R3 breakout - strong momentum
+                    entry_level = "R3"
+                    sl_price = current_price - 1.2 * atr
+                    tp_price = current_price + 2.5 * atr
+                elif r2_breakout:
+                    # R2 breakout - confirmed momentum  
+                    entry_level = "R2"
+                    sl_price = current_price - 1.0 * atr
+                    tp_price = current_price + 2.0 * atr
+                else:
+                    # R1 breakout - early momentum
+                    entry_level = "R1"
+                    sl_price = current_price - 0.8 * atr
+                    tp_price = current_price + 1.5 * atr
             
             # Calculate position size based on CURRENT available cash
             shares, investment, risk_amount, risk_pct = calculate_realistic_position_size(
