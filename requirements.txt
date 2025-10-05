@@ -1,0 +1,6 @@
+pandas>=1.3
+numpy>=1.21
+ta>=0.10.2
+matplotlib>=3.4
+vectorbt
+investiny @ git+https://github.com/fajardm/investiny@change-httpx-to-curl-cffi
