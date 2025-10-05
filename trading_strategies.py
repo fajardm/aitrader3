@@ -78,11 +78,11 @@ class TradingStrategy:
             Dict with stop_loss, take_profit, and max_days
         """
         if level == 'R1':
-            # R1 breakout - early momentum, tighter management
+            # R1 breakout - early momentum, TIGHTER management for risk control
             return {
-                'stop_loss': entry_price - 0.8 * atr,
-                'take_profit': entry_price + 1.5 * atr,
-                'max_days': 4
+                'stop_loss': entry_price - 0.6 * atr,  # Reduced from 0.8 to 0.6 ATR
+                'take_profit': entry_price + 1.2 * atr,  # Reduced from 1.5 to 1.2 ATR
+                'max_days': 3  # Reduced from 4 to 3 days
             }
         elif level == 'R2':
             # R2 breakout - confirmed momentum, balanced approach
