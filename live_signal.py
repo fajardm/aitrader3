@@ -321,11 +321,6 @@ def main():
             pullback_signal = check_pullback_signal(df, args.symbol, args.cash)
             display_signal(pullback_signal)
         
-        # Show recent price action
-        recent = df.tail(5)[['close', 'R1', 'R2', 'R3', 'P', 'S3', 'S2', 'S1', 'rsi14', 'atr14']].round(0)
-        print(f"\n📊 RECENT PRICE ACTION (Last 5 days):")
-        print(recent.to_string())
-        
     except Exception as e:
         print(f"❌ Error: {e}")
         print("Make sure you have internet connection and the investiny package installed")
