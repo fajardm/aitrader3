@@ -16,7 +16,11 @@
                 </h1>
                 <p class="text-gray-600">Last updated: {{ stock.last_update }}</p>
             </div>
-            <div class="mt-4 sm:mt-0">
+            <div class="mt-4 sm:mt-0 flex space-x-3">
+                <button onclick="copyIndicators()" class="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <i class="fas fa-copy mr-2"></i>
+                    Copy Indicators
+                </button>
                 <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     <i class="fas fa-arrow-left mr-2"></i>
                     Back to Overview
@@ -844,6 +848,76 @@
     setTimeout(function(){
         window.location.reload();
     }, 60000);
+
+    // Copy indicators function
+    function copyIndicators() {
+        const indicators = {
+            symbol: '{{ stock.symbol }}',
+            currentPrice: {{ stock.current_price }},
+            date: '{{ stock.last_update }}',
+            pivotPoints: {
+                R3: {{ stock.levels.r3 }},
+                R2: {{ stock.levels.r2 }},
+                R1: {{ stock.levels.r1 }},
+                P: {{ stock.levels.p }},
+                S1: {{ stock.levels.s1 }},
+                S2: {{ stock.levels.s2 }},
+                S3: {{ stock.levels.s3 }}
+            },
+            ema: {
+                EMA5: {{ stock.levels.ema5 }},
+                EMA10: {{ stock.levels.ema10 }},
+                EMA20: {{ stock.levels.ema20 }},
+                EMA50: {{ stock.levels.ema50 }},
+                EMA100: {{ stock.levels.ema100 }},
+                EMA200: {{ stock.levels.ema200 }}
+            },
+            rsi: {{ stock.indicators.rsi }},
+            atr: {{ stock.indicators.atr }},
+        };
+
+        // Format as readable text
+        let text = `=== ${indicators.symbol} TECHNICAL ANALYSIS ===\n`;
+        text += `Date: ${indicators.date}\n`;
+        text += `Current Price: Rp ${indicators.currentPrice.toLocaleString()}\n\n`;
+        
+        text += `PIVOT POINTS:\n`;
+        text += `R3: Rp ${indicators.pivotPoints.R3.toLocaleString()}\n`;
+        text += `R2: Rp ${indicators.pivotPoints.R2.toLocaleString()}\n`;
+        text += `R1: Rp ${indicators.pivotPoints.R1.toLocaleString()}\n`;
+        text += `P:  Rp ${indicators.pivotPoints.P.toLocaleString()}\n`;
+        text += `S1: Rp ${indicators.pivotPoints.S1.toLocaleString()}\n`;
+        text += `S2: Rp ${indicators.pivotPoints.S2.toLocaleString()}\n`;
+        text += `S3: Rp ${indicators.pivotPoints.S3.toLocaleString()}\n\n`;
+        
+        text += `MOVING AVERAGES:\n`;
+        Object.entries(indicators.ema).forEach(([key, value]) => {
+            if (value) text += `${key}: Rp ${value.toLocaleString()}\n`;
+        });
+        
+        text += `\nTECHNICAL INDICATORS:\n`;
+        text += `RSI(14): ${indicators.rsi.toFixed(2)}\n`;
+        text += `ATR(14): ${indicators.atr.toFixed(2)}\n\n`;
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(text).then(function() {
+            // Show success message
+            const button = event.target.closest('button');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+            button.classList.remove('text-blue-700', 'bg-blue-50', 'hover:bg-blue-100');
+            button.classList.add('text-green-700', 'bg-green-50');
+            
+            setTimeout(function() {
+                button.innerHTML = originalText;
+                button.classList.remove('text-green-700', 'bg-green-50');
+                button.classList.add('text-blue-700', 'bg-blue-50', 'hover:bg-blue-100');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            alert('Failed to copy to clipboard. Please try again.');
+        });
+    }
 </script>
 {% endblock %}
 </html>
