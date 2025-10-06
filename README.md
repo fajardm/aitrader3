@@ -209,3 +209,33 @@ web: gunicorn -w 4 -b 0.0.0.0:$PORT app:app
 5. Deploy and monitor logs from Railway's dashboard.
 
 Note: If `investiny` installation requires Git dependencies, Railway will install them from `requirements.txt` which already references the Git URL.
+
+## ☁️ Deploying to Google Cloud Run
+
+This project includes a `Dockerfile` and `cloudbuild.yaml` to build and deploy to Cloud Run using Cloud Build.
+
+Quick steps (gcloud must be installed and authenticated):
+
+1. Enable required APIs:
+
+```bash
+gcloud services enable cloudbuild.googleapis.com run.googleapis.com containerregistry.googleapis.com
+```
+
+2. Submit a Cloud Build (from repo root):
+
+```bash
+gcloud builds submit --config cloudbuild.yaml --substitutions=_COMMIT_SHA=$(git rev-parse --short HEAD)
+```
+
+3. Alternatively build & push manually, then deploy:
+
+```bash
+docker build -t gcr.io/$GOOGLE_CLOUD_PROJECT/aitrader3:latest .
+docker push gcr.io/$GOOGLE_CLOUD_PROJECT/aitrader3:latest
+gcloud run deploy aitrader3 --image gcr.io/$GOOGLE_CLOUD_PROJECT/aitrader3:latest --region us-central1 --platform managed --allow-unauthenticated
+```
+
+Notes:
+- Cloud Run sets the `PORT` environment variable automatically; the `Dockerfile` and `app.py` already respect that.
+- If you need to set environment variables (API keys, FLASK_DEBUG=0), configure them in Cloud Run after deployment or add `--set-env-vars` to the `gcloud run deploy` command.
