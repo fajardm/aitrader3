@@ -27,5 +27,8 @@ COPY . /app
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
 
-# Cloud Run provides PORT env. Use gunicorn as the entrypoint.
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:$PORT", "app:app"]
+# Expose port (informational only for Cloud Run)
+EXPOSE 8080
+
+# Cloud Run provides PORT env. Use shell form to expand $PORT variable.
+CMD gunicorn -w 4 -b 0.0.0.0:${PORT:-8080} app:app

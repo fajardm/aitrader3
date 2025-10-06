@@ -193,6 +193,10 @@ def stock_detail(symbol):
     except Exception as e:
         return f"<h1>Error</h1><p>Error loading data for {symbol}: {str(e)}</p>", 500
 
+@app.route('/health')
+def health():
+    """Health check endpoint for Cloud Run"""
+    return {'status': 'ok', 'timestamp': datetime.now().isoformat()}, 200
 
 if __name__ == '__main__':
     # Respect environment variables for deployment platforms like Railway
