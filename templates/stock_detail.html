@@ -1,0 +1,849 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stock.symbol }} - Stock Detail{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header Section -->
+    <div class="mb-8">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                    {{ stock.symbol }}
+                    <span class="text-xl sm:text-2xl font-semibold text-blue-600 ml-4">
+                        Rp {{ "{:,.0f}".format(stock.current_price) }}
+                    </span>
+                </h1>
+                <p class="text-gray-600">Last updated: {{ stock.last_update }}</p>
+            </div>
+            <div class="mt-4 sm:mt-0">
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Overview
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pivot Points & EMA Tables Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Pivot Points Table -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-layer-group text-blue-600 mr-2"></i>
+                    Pivot Points
+                </h3>
+                <p class="text-sm text-gray-600 mt-1">Support & Resistance Levels</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">R3</span>
+                                    <span class="ml-2 text-sm text-gray-900">Resistance 3</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.r3) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.r3 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">R2</span>
+                                    <span class="ml-2 text-sm text-gray-900">Resistance 2</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.r2) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.r2 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">R1</span>
+                                    <span class="ml-2 text-sm text-gray-900">Resistance 1</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.r1) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.r1 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="bg-blue-50 hover:bg-blue-100">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">P</span>
+                                    <span class="ml-2 text-sm font-semibold text-blue-900">Pivot Point</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-blue-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.p) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.p %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">S1</span>
+                                    <span class="ml-2 text-sm text-gray-900">Support 1</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.s1) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.s1 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">S2</span>
+                                    <span class="ml-2 text-sm text-gray-900">Support 2</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.s2) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.s2 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">S3</span>
+                                    <span class="ml-2 text-sm text-gray-900">Support 3</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.s3) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.s3 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Above
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Below
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- EMA Table -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-chart-line text-purple-600 mr-2"></i>
+                    Moving Averages (EMA)
+                </h3>
+                <p class="text-sm text-gray-600 mt-1">Exponential Moving Averages</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% if stock.levels.ema5 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">EMA5</span>
+                                    <span class="ml-2 text-sm text-gray-900">5-day EMA</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.ema5) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.ema5 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Bullish
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Bearish
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if stock.levels.ema10 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">EMA10</span>
+                                    <span class="ml-2 text-sm text-gray-900">10-day EMA</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.ema10) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.ema10 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Bullish
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Bearish
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">EMA20</span>
+                                    <span class="ml-2 text-sm text-gray-900">20-day EMA</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.ema20) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.ema20 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Bullish
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Bearish
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        
+                        {% if stock.levels.ema50 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">EMA50</span>
+                                    <span class="ml-2 text-sm text-gray-900">50-day EMA</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.ema50) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.ema50 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Bullish
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Bearish
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if stock.levels.ema100 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">EMA100</span>
+                                    <span class="ml-2 text-sm text-gray-900">100-day EMA</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.ema100) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.ema100 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Bullish
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Bearish
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if stock.levels.ema200 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">EMA200</span>
+                                    <span class="ml-2 text-sm text-gray-900">200-day EMA</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                Rp {{ "{:,.0f}".format(stock.levels.ema200) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                {% if stock.current_price > stock.levels.ema200 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-arrow-up mr-1"></i>Bullish
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-arrow-down mr-1"></i>Bearish
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Analysis Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- RSI Analysis Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-chart-line text-blue-600 mr-2"></i>
+                    RSI Analysis
+                </h3>
+            </div>
+            <div class="p-6">
+                <!-- RSI Value -->
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-gray-600">RSI (14)</span>
+                    <div class="text-right">
+                        <span class="text-2xl font-bold
+                            {% if stock.indicators.rsi > 70 %}text-red-600
+                            {% elif stock.indicators.rsi < 30 %}text-green-600
+                            {% else %}text-blue-600{% endif %}">
+                            {{ "%.2f"|format(stock.indicators.rsi) }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- RSI Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Oversold (30)</span>
+                        <span>Neutral (50)</span>
+                        <span>Overbought (70)</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div class="h-3 rounded-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500"></div>
+                        <div class="relative -mt-3">
+                            <div class="absolute w-1 h-5 bg-gray-800 rounded" 
+                                 style="left: {{stock.indicators.rsi }}%; transform: translateX(-50%);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RSI Interpretation -->
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 rounded-full mr-2
+                            {% if stock.indicators.rsi > 70 %}bg-red-500
+                            {% elif stock.indicators.rsi < 30 %}bg-green-500
+                            {% else %}bg-blue-500{% endif %}"></div>
+                        <span class="text-sm font-medium
+                            {% if stock.indicators.rsi > 70 %}text-red-700
+                            {% elif stock.indicators.rsi < 30 %}text-green-700
+                            {% else %}text-blue-700{% endif %}">
+                            {% if stock.indicators.rsi > 70 %}
+                                Overbought - Potential Sell Signal
+                            {% elif stock.indicators.rsi < 30 %}
+                                Oversold - Potential Buy Signal
+                            {% else %}
+                                Neutral Zone
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="text-xs text-gray-600 mt-2">
+                        {% if stock.indicators.rsi > 70 %}
+                            RSI above 70 indicates the stock may be overbought. Consider taking profits or waiting for a pullback.
+                        {% elif stock.indicators.rsi < 30 %}
+                            RSI below 30 indicates the stock may be oversold. This could be a good buying opportunity.
+                        {% elif stock.indicators.rsi > 50 %}
+                            RSI above 50 shows bullish momentum. Price trend is generally upward.
+                        {% else %}
+                            RSI below 50 shows bearish momentum. Price trend is generally downward.
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- RSI Divergence Check -->
+                <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Signal Strength</span>
+                        <div class="flex items-center">
+                            {% set rsi_strength = 0 %}
+                            {% if stock.indicators.rsi > 70 or stock.indicators.rsi < 30 %}
+                                {% set rsi_strength = 3 %}
+                            {% elif stock.indicators.rsi > 60 or stock.indicators.rsi < 40 %}
+                                {% set rsi_strength = 2 %}
+                            {% else %}
+                                {% set rsi_strength = 1 %}
+                            {% endif %}
+                            
+                            {% for i in range(3) %}
+                                <div class="w-2 h-2 rounded-full mr-1
+                                    {% if i < rsi_strength %}bg-blue-500{% else %}bg-gray-300{% endif %}"></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ATR Analysis Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-chart-bar text-purple-600 mr-2"></i>
+                    ATR Analysis
+                </h3>
+            </div>
+            <div class="p-6">
+                <!-- ATR Value -->
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-gray-600">ATR (14)</span>
+                    <div class="text-right">
+                        <span class="text-2xl font-bold text-purple-600">
+                            {{ "%.2f"|format(stock.indicators.atr) }}
+                        </span>
+                        <div class="text-xs text-gray-500">
+                            {{ "%.2f"|format((stock.indicators.atr / stock.current_price * 100)) }}% of price
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volatility Gauge -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Low</span>
+                        <span>Medium</span>
+                        <span>High</span>
+                    </div>
+                    {% set atr_pct = (stock.indicators.atr / stock.current_price * 100) %}
+                    {% set width_pct = atr_pct * 20 %}
+                    {% if width_pct > 100 %}{% set width_pct = 100 %}{% endif %}
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div class="h-3 rounded-full
+                            {% if atr_pct > 3 %}bg-red-500
+                            {% elif atr_pct > 1.5 %}bg-yellow-500
+                            {% else %}bg-green-500{% endif %}"
+                            style="width: {{ width_pct }}%"></div>
+                    </div>
+                </div>
+
+                <!-- ATR Interpretation -->
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 rounded-full mr-2
+                            {% if atr_pct > 3 %}bg-red-500
+                            {% elif atr_pct > 1.5 %}bg-yellow-500
+                            {% else %}bg-green-500{% endif %}"></div>
+                        <span class="text-sm font-medium
+                            {% if atr_pct > 3 %}text-red-700
+                            {% elif atr_pct > 1.5 %}text-yellow-700
+                            {% else %}text-green-700{% endif %}">
+                            {% if atr_pct > 3 %}
+                                High Volatility
+                            {% elif atr_pct > 1.5 %}
+                                Medium Volatility
+                            {% else %}
+                                Low Volatility
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="text-xs text-gray-600 mt-2">
+                        {% if atr_pct > 3 %}
+                            High volatility suggests larger price swings. Use wider stop losses and smaller position sizes.
+                        {% elif atr_pct > 1.5 %}
+                            Medium volatility indicates normal market conditions. Standard risk management applies.
+                        {% else %}
+                            Low volatility suggests smaller price movements. Tighter stops and larger positions may be appropriate.
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Risk Metrics -->
+                <div class="mt-4 space-y-2">
+                    <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span class="text-xs font-medium text-gray-600">Suggested Stop Loss</span>
+                        <span class="text-xs font-bold text-red-600">
+                            {{ "%.2f"|format(stock.current_price - (stock.indicators.atr * 2)) }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span class="text-xs font-medium text-gray-600">Daily Range (2×ATR)</span>
+                        <span class="text-xs font-bold text-blue-600">
+                            {{ "%.2f"|format(stock.indicators.atr * 2) }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span class="text-xs font-medium text-gray-600">Expected Move</span>
+                        <span class="text-xs font-bold text-purple-600">
+                            ±{{ "%.2f"|format(atr_pct) }}%
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Risk Level Indicator -->
+                <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Risk Level</span>
+                        <div class="flex items-center">
+                            {% set risk_level = 1 %}
+                            {% if atr_pct > 3 %}
+                                {% set risk_level = 3 %}
+                            {% elif atr_pct > 1.5 %}
+                                {% set risk_level = 2 %}
+                            {% endif %}
+                            
+                            {% for i in range(3) %}
+                                <div class="w-2 h-2 rounded-full mr-1
+                                    {% if i < risk_level %}
+                                        {% if risk_level == 3 %}bg-red-500
+                                        {% elif risk_level == 2 %}bg-yellow-500
+                                        {% else %}bg-green-500{% endif %}
+                                    {% else %}bg-gray-300{% endif %}"></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trading Signals Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Breakout Signal -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-rocket text-orange-600 mr-2"></i>
+                    Breakout Strategy
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-gray-600">Signal</span>
+                    <span class="px-3 py-1 rounded-full text-sm font-medium
+                        {% if stock.breakout_signal.signal == 'BUY' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ stock.breakout_signal.signal }}
+                    </span>
+                </div>
+                
+                {% if stock.breakout_signal.signal == 'BUY' %}
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Entry Level:</span>
+                        <span class="font-medium">{{ stock.breakout_signal.entry_level }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Entry Price:</span>
+                        <span class="font-medium">Rp {{ "{:,.0f}".format(stock.breakout_signal.entry_price) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Stop Loss:</span>
+                        <span class="font-medium text-red-600">
+                            Rp {{ "{:,.0f}".format(stock.breakout_signal.stop_loss) }}
+                            <span class="text-xs">({{ "%.1f"|format(((stock.breakout_signal.stop_loss - stock.breakout_signal.entry_price) / stock.breakout_signal.entry_price * 100)) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Take Profit:</span>
+                        <span class="font-medium text-green-600">
+                            Rp {{ "{:,.0f}".format(stock.breakout_signal.take_profit) }}
+                            <span class="text-xs">(+{{ "%.1f"|format(((stock.breakout_signal.take_profit - stock.breakout_signal.entry_price) / stock.breakout_signal.entry_price * 100)) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Shares:</span>
+                        <span class="font-medium">{{ "{:,.0f}".format(stock.breakout_signal.shares / 100) }} Lots</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Max Hold Days:</span>
+                        <span class="font-medium text-blue-600">{{ stock.breakout_signal.max_hold_days }} days</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Resistance Retest Signal -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-arrows-turn-to-dots text-blue-600 mr-2"></i>
+                    Resistance Retest
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-gray-600">Signal</span>
+                    <span class="px-3 py-1 rounded-full text-sm font-medium
+                        {% if stock.resistance_retest_signal.signal == 'BUY' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ stock.resistance_retest_signal.signal }}
+                    </span>
+                </div>
+                
+                {% if stock.resistance_retest_signal.signal == 'BUY' %}
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Entry Level:</span>
+                        <span class="font-medium">{{ stock.resistance_retest_signal.entry_level }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Entry Price:</span>
+                        <span class="font-medium">Rp {{ "{:,.0f}".format(stock.resistance_retest_signal.entry_price) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Stop Loss:</span>
+                        <span class="font-medium text-red-600">
+                            Rp {{ "{:,.0f}".format(stock.resistance_retest_signal.stop_loss) }}
+                            <span class="text-xs">({{ "%.1f"|format(((stock.resistance_retest_signal.stop_loss - stock.resistance_retest_signal.entry_price) / stock.resistance_retest_signal.entry_price * 100)) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Take Profit:</span>
+                        <span class="font-medium text-green-600">
+                            Rp {{ "{:,.0f}".format(stock.resistance_retest_signal.take_profit) }}
+                            <span class="text-xs">(+{{ "%.1f"|format(((stock.resistance_retest_signal.take_profit - stock.resistance_retest_signal.entry_price) / stock.resistance_retest_signal.entry_price * 100)) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Shares:</span>
+                        <span class="font-medium">{{ "{:,.0f}".format(stock.resistance_retest_signal.shares / 100) }} Lots</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Max Hold Days:</span>
+                        <span class="font-medium text-blue-600">{{ stock.resistance_retest_signal.max_hold_days }} days</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pullback Signal -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-chart-line text-green-600 mr-2"></i>
+                    Pullback Strategy
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-gray-600">Signal</span>
+                    <span class="px-3 py-1 rounded-full text-sm font-medium
+                        {% if stock.pullback_signal.signal == 'BUY' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ stock.pullback_signal.signal }}
+                    </span>
+                </div>
+                
+                {% if stock.pullback_signal.signal == 'BUY' %}
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Entry Level:</span>
+                        <span class="font-medium">{{ stock.pullback_signal.entry_level }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Entry Price:</span>
+                        <span class="font-medium">Rp {{ "{:,.0f}".format(stock.pullback_signal.entry_price) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Stop Loss:</span>
+                        <span class="font-medium text-red-600">
+                            Rp {{ "{:,.0f}".format(stock.pullback_signal.stop_loss) }}
+                            <span class="text-xs">({{ "%.1f"|format(((stock.pullback_signal.stop_loss - stock.pullback_signal.entry_price) / stock.pullback_signal.entry_price * 100)) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Take Profit:</span>
+                        <span class="font-medium text-green-600">
+                            Rp {{ "{:,.0f}".format(stock.pullback_signal.take_profit) }}
+                            <span class="text-xs">(+{{ "%.1f"|format(((stock.pullback_signal.take_profit - stock.pullback_signal.entry_price) / stock.pullback_signal.entry_price * 100)) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Shares:</span>
+                        <span class="font-medium">{{ "{:,.0f}".format(stock.pullback_signal.shares / 100) }} Lots</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Max Hold Days:</span>
+                        <span class="font-medium text-blue-600">{{ stock.pullback_signal.max_hold_days }} days</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Backtest Results Section -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">
+                <i class="fas fa-chart-bar text-indigo-600 mr-2"></i>
+                Backtest Performance (2024-2025)
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">Historical performance analysis</p>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <!-- Breakout Performance -->
+                <div class="text-center p-4 bg-orange-50 rounded-lg">
+                    <h4 class="font-semibold text-orange-800 mb-3">Breakout Strategy</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <div class="text-2xl font-bold text-orange-600">{{ "%.1f"|format(stock.backtest.breakout.total_return) }}%</div>
+                            <div class="text-sm text-gray-600">Total Return</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-semibold text-gray-700">{{ "%.1f"|format(stock.backtest.breakout.sharpe_ratio) }}</div>
+                            <div class="text-sm text-gray-600">Sharpe Ratio</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-semibold text-red-600">{{ "%.1f"|format(stock.backtest.breakout.max_drawdown) }}%</div>
+                            <div class="text-sm text-gray-600">Max Drawdown</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resistance Retest Performance -->
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <h4 class="font-semibold text-blue-800 mb-3">Resistance Retest</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <div class="text-2xl font-bold text-blue-600">{{ "%.1f"|format(stock.backtest.resistance_retest.total_return) }}%</div>
+                            <div class="text-sm text-gray-600">Total Return</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-semibold text-gray-700">{{ "%.1f"|format(stock.backtest.resistance_retest.sharpe_ratio) }}</div>
+                            <div class="text-sm text-gray-600">Sharpe Ratio</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-semibold text-red-600">{{ "%.1f"|format(stock.backtest.resistance_retest.max_drawdown) }}%</div>
+                            <div class="text-sm text-gray-600">Max Drawdown</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pullback Performance -->
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <h4 class="font-semibold text-green-800 mb-3">Pullback Strategy</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <div class="text-2xl font-bold text-green-600">{{ "%.1f"|format(stock.backtest.pullback.total_return) }}%</div>
+                            <div class="text-sm text-gray-600">Total Return</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-semibold text-gray-700">{{ "%.1f"|format(stock.backtest.pullback.sharpe_ratio) }}</div>
+                            <div class="text-sm text-gray-600">Sharpe Ratio</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-semibold text-red-600">{{ "%.1f"|format(stock.backtest.pullback.max_drawdown) }}%</div>
+                            <div class="text-sm text-gray-600">Max Drawdown</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Auto-refresh every 60 seconds
+    setTimeout(function(){
+        window.location.reload();
+    }, 60000);
+</script>
+{% endblock %}
+</html>

@@ -20,7 +20,9 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
         
         if not position_open:
             # Check for entry signal using centralized logic
-            if strategy_type == "pullback":
+            if strategy_type.lower() == "resistance_retest":
+                has_signal = BacktestStrategy.has_resistance_retest_signal(row)
+            elif strategy_type.lower() == "pullback":
                 has_signal = BacktestStrategy.has_pullback_signal(row)
             else:  # breakout
                 has_signal = BacktestStrategy.has_breakout_signal(row)
@@ -31,14 +33,18 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
                 days_held = 0
                 
                 # Store which level was triggered for exit calculation
-                if strategy_type == "pullback":
+                if strategy_type.lower() == "resistance_retest":
+                    retest_status = BacktestStrategy.check_resistance_retest_conditions(row)
+                    triggered_level = BacktestStrategy.determine_resistance_retest_level(retest_status)
+                elif strategy_type.lower() == "pullback":
                     pullback_status = BacktestStrategy.check_pullback_conditions(row)
                     triggered_level = BacktestStrategy.determine_pullback_level(pullback_status)
-                    df.loc[df.index[i], 'triggered_level'] = triggered_level
                 else:  # breakout
                     breakout_status = BacktestStrategy.check_breakout_conditions(row)
                     triggered_level = BacktestStrategy.determine_breakout_level(breakout_status)
-                    df.loc[df.index[i], 'triggered_level'] = triggered_level
+                
+                # Store triggered level for all strategies
+                df.loc[df.index[i], 'triggered_level'] = triggered_level
             
         elif position_open:
             days_held += 1
@@ -107,7 +113,10 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
             atr = row['atr14']
             
             # Determine triggered level using centralized logic
-            if strategy_type == "pullback":
+            if strategy_type.lower() in ["resistance_retest"]:
+                retest_status = BacktestStrategy.check_resistance_retest_conditions(row)
+                entry_level = BacktestStrategy.determine_resistance_retest_level(retest_status)
+            elif strategy_type.lower() == "pullback":
                 pullback_status = BacktestStrategy.check_pullback_conditions(row)
                 entry_level = BacktestStrategy.determine_pullback_level(pullback_status)
             else:  # breakout
@@ -115,9 +124,13 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
                 entry_level = BacktestStrategy.determine_breakout_level(breakout_status)
             
             # Get strategy parameters using centralized logic
-            if strategy_type == "pullback":
+            if strategy_type.lower() in ["resistance_retest"]:
+                # For resistance retest, entry price is the resistance level
+                entry_price = row[f'R{entry_level[-1]}']  # Extract number from 'R1' or 'R2'
+                params = BacktestStrategy.get_resistance_retest_parameters(entry_level, atr, entry_price)
+            elif strategy_type.lower() == "pullback":
                 # For pullback, entry price is the support level
-                entry_price = row['R1'] if entry_level == 'R1' else row['R2']
+                entry_price = row[f'S{entry_level[-1]}']  # Extract number from 'S1', 'S2', or 'S3'
                 params = BacktestStrategy.get_pullback_parameters(entry_level, atr, entry_price)
             else:  # breakout
                 entry_price = current_price
@@ -235,17 +248,24 @@ def main():
     print(f"Price range: {df['close'].min():.0f} - {df['close'].max():.0f}")
     print(f"Target: 2% risk per trade = Rp{args.cash * 0.02:,.0f} max risk per trade")
     
-    # Test both strategies with REALISTIC cash management
+    # Test all three strategies with REALISTIC cash management
     print("\n" + "="*60)
+    print("=== TESTING PULLBACK STRATEGY (Support-based) ===")
     pullback_final, pullback_return, pullback_dd, pullback_sharpe = run_realistic_backtest(df, "Pullback", args.cash)
     
     print("\n" + "="*60)
+    print("=== TESTING RESISTANCE RETEST STRATEGY ===")
+    resistance_retest_final, resistance_retest_return, resistance_retest_dd, resistance_retest_sharpe = run_realistic_backtest(df, "Resistance_Retest", args.cash)
+    
+    print("\n" + "="*60)
+    print("=== TESTING BREAKOUT STRATEGY ===")
     breakout_final, breakout_return, breakout_dd, breakout_sharpe = run_realistic_backtest(df, "Breakout", args.cash)
     
     # Summary comparison
     print(f"\n" + "="*60)
     print(f"=== FINAL REALISTIC COMPARISON ===")
-    print(f"Pullback: {pullback_return:.1f}% return, {pullback_dd:.1f}% DD, {pullback_sharpe:.2f} Sharpe")
+    print(f"Pullback (Support): {pullback_return:.1f}% return, {pullback_dd:.1f}% DD, {pullback_sharpe:.2f} Sharpe")
+    print(f"Resistance Retest: {resistance_retest_return:.1f}% return, {resistance_retest_dd:.1f}% DD, {resistance_retest_sharpe:.2f} Sharpe")
     print(f"Breakout: {breakout_return:.1f}% return, {breakout_dd:.1f}% DD, {breakout_sharpe:.2f} Sharpe")
     print(f"="*60)
 

@@ -4,3 +4,4 @@ ta>=0.10.2
 matplotlib>=3.4
 vectorbt
 investiny @ git+https://github.com/fajardm/investiny@change-httpx-to-curl-cffi
+flask>=3.1.2
