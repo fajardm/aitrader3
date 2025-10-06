@@ -430,7 +430,7 @@ class LiveSignalStrategy(TradingStrategy):
             )
             
             risk_amount = shares * (latest['close'] - params['stop_loss'])
-            risk_pct = (risk_amount / cash) * 100
+            risk_pct = (risk_amount / cash) * 100 if cash > 0 else 0
             
             signal_data.update({
                 'entry_price': latest['close'],
@@ -489,7 +489,7 @@ class LiveSignalStrategy(TradingStrategy):
             )
             
             risk_amount = shares * (entry_price - params['stop_loss'])
-            risk_pct = (risk_amount / cash) * 100
+            risk_pct = (risk_amount / cash) * 100 if cash > 0 else 0
             
             signal_data.update({
                 'entry_price': entry_price,
@@ -553,7 +553,7 @@ class LiveSignalStrategy(TradingStrategy):
             )
             
             risk_amount = shares * (entry_price - params['stop_loss'])
-            risk_pct = (risk_amount / cash) * 100
+            risk_pct = (risk_amount / cash) * 100 if cash > 0 else 0
             
             signal_data.update({
                 'entry_price': entry_price,

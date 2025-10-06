@@ -230,8 +230,11 @@ def display_signal(signal: dict):
         
         print(f"\n📋 TRADING PLAN:")
         print(f"Entry Price: Rp {signal['entry_price']:,.0f}")
-        print(f"Stop Loss: Rp {signal['stop_loss']:,.0f} (-{((signal['entry_price'] - signal['stop_loss'])/signal['entry_price']*100):.1f}%)")
-        print(f"Take Profit: Rp {signal['take_profit']:,.0f} (+{((signal['take_profit'] - signal['entry_price'])/signal['entry_price']*100):.1f}%)")
+        entry_price = signal['entry_price']
+        sl_pct = ((entry_price - signal['stop_loss'])/entry_price*100) if entry_price > 0 else 0
+        tp_pct = ((signal['take_profit'] - entry_price)/entry_price*100) if entry_price > 0 else 0
+        print(f"Stop Loss: Rp {signal['stop_loss']:,.0f} (-{sl_pct:.1f}%)")
+        print(f"Take Profit: Rp {signal['take_profit']:,.0f} (+{tp_pct:.1f}%)")
         print(f"Recommended Shares: {signal['shares']:,} ({round(signal['shares'] / 100, 0):,.0f} Lots)")
         print(f"Investment Amount: Rp {signal['investment']:,.0f}")
         print(f"Risk Amount: Rp {signal['risk_amount']:,.0f} ({signal['risk_percent']:.2f}%)")

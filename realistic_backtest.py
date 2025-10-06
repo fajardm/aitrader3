@@ -157,31 +157,22 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
                       f"Risk: {risk_pct*100:.2f}%, Available Cash: {cash:,.0f}")
         
         elif exits.iloc[i] and position_open:
-            # Determine exit reason and appropriate exit price
-            atr = row['atr14']
-            if strategy_type.lower() == "resistance_retest":
-                entry_level_num = entry_level[-1]  # Extract number from 'R1' or 'R2'
-                exit_entry_price = row[f'R{entry_level_num}']
-                params = BacktestStrategy.get_resistance_retest_parameters(entry_level, atr, exit_entry_price)
-            elif strategy_type.lower() == "pullback":
-                entry_level_num = entry_level[-1]  # Extract number from 'S1', 'S2', or 'S3'
-                exit_entry_price = row[f'S{entry_level_num}']
-                params = BacktestStrategy.get_pullback_parameters(entry_level, atr, exit_entry_price)
-            else:  # breakout
-                exit_entry_price = entry_price
-                params = BacktestStrategy.get_breakout_parameters(entry_level, atr, exit_entry_price)
-            
             # Get exit reason to determine correct exit price
+            # Use stored entry parameters, not recalculated ones
+            try:
+                days_held = i - df.index.get_loc(entry_date) if entry_date else 0
+            except (KeyError, ValueError):
+                days_held = 0
+            
             _, exit_reason = BacktestStrategy.should_exit_position(
-                row, entry_price, strategy_type, entry_level, 
-                i - df.index.get_loc(entry_date) if entry_date else 0
+                row, entry_price, strategy_type, entry_level, days_held
             )
             
             # Use appropriate exit price based on exit reason
             if exit_reason == 'take_profit':
-                exit_price = params['take_profit']
+                exit_price = tp_price  # Use stored take profit from entry
             elif exit_reason == 'stop_loss':
-                exit_price = params['stop_loss']
+                exit_price = sl_price  # Use stored stop loss from entry
             else:  # time_exit
                 exit_price = current_price
             
