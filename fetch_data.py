@@ -24,10 +24,11 @@ def load_from_cache(ticker: str, start_date: str) -> Optional[pd.DataFrame]:
         return None
     
     try:
-        # Check cache age (refresh if older than 1 day)
+        # Check cache age (refresh if older than 10 minutes)
         file_age = dt.datetime.now() - dt.datetime.fromtimestamp(cache_file.stat().st_mtime)
-        if file_age.days > 1:
-            print(f"� Cache for {ticker} is {file_age.days} days old, refreshing...")
+        if file_age.total_seconds() > 600:  # 10 minutes = 600 seconds
+            minutes_old = file_age.total_seconds() / 60
+            print(f"🔄 Cache for {ticker} is {minutes_old:.1f} minutes old, refreshing...")
             return None
         
         df = pd.read_csv(cache_file, index_col=0, parse_dates=True)

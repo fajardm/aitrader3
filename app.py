@@ -193,31 +193,10 @@ def stock_detail(symbol):
     except Exception as e:
         return f"<h1>Error</h1><p>Error loading data for {symbol}: {str(e)}</p>", 500
 
-@app.route('/api/refresh/<symbol>')
-def refresh_stock_api(symbol):
-    """API endpoint to refresh stock data"""
-    try:
-        df = load_ohlcv(symbol, "2023-01-01")
-        if df is None or len(df) < 50:
-            return jsonify({'error': 'Insufficient data'}), 404
-        
-        df = calculate_indicators(df)
-        breakout_signal = check_breakout_signal(df, symbol, 1_000_000)
-        resistance_retest_signal = check_resistance_retest_signal(df, symbol, 1_000_000)
-        pullback_signal = check_pullback_signal(df, symbol, 1_000_000)
-        
-        return jsonify({
-            'symbol': symbol,
-            'current_price': float(df.iloc[-1]['close']),
-            'breakout_signal': breakout_signal['signal'],
-            'resistance_retest_signal': resistance_retest_signal['signal'],
-            'pullback_signal': pullback_signal['signal'],
-            'rsi': float(df.iloc[-1]['rsi14']),
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Respect environment variables for deployment platforms like Railway
+    port = int(os.environ.get('PORT', 5001))
+    debug_env = os.environ.get('FLASK_DEBUG', '1')
+    debug_mode = debug_env in ('1', 'true', 'True')
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

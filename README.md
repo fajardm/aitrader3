@@ -192,3 +192,20 @@ Feel free to submit issues, feature requests, or improvements to enhance the tra
 ## 📄 License
 
 This project is for personal and educational use. Please respect all applicable financial regulations and terms of service for data providers.
+
+## 🚅 Deploying to Railway (quick note)
+
+To deploy this Flask app to Railway:
+
+1. Commit and push your repo to GitHub.
+2. Create a new project on Railway and connect the repo.
+3. Railway will detect a Python app. Ensure `requirements.txt` is present and `Procfile` contains:
+
+```
+web: gunicorn -w 4 -b 0.0.0.0:$PORT app:app
+```
+
+4. Railway provides `PORT` automatically. Optionally set `FLASK_DEBUG=0` for production.
+5. Deploy and monitor logs from Railway's dashboard.
+
+Note: If `investiny` installation requires Git dependencies, Railway will install them from `requirements.txt` which already references the Git URL.
