@@ -150,14 +150,41 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
                 shares_held = shares
                 cash -= investment
                 position_open = True
+                entry_date = date  # Store entry date
                 
                 print(f"ENTRY: {date.strftime('%Y-%m-%d')} @ {entry_price:.0f} ({entry_level}), "
                       f"Shares: {shares}, Investment: {investment:,.0f}, "
                       f"Risk: {risk_pct*100:.2f}%, Available Cash: {cash:,.0f}")
         
         elif exits.iloc[i] and position_open:
-            # Exit position
-            exit_price = current_price
+            # Determine exit reason and appropriate exit price
+            atr = row['atr14']
+            if strategy_type.lower() == "resistance_retest":
+                entry_level_num = entry_level[-1]  # Extract number from 'R1' or 'R2'
+                exit_entry_price = row[f'R{entry_level_num}']
+                params = BacktestStrategy.get_resistance_retest_parameters(entry_level, atr, exit_entry_price)
+            elif strategy_type.lower() == "pullback":
+                entry_level_num = entry_level[-1]  # Extract number from 'S1', 'S2', or 'S3'
+                exit_entry_price = row[f'S{entry_level_num}']
+                params = BacktestStrategy.get_pullback_parameters(entry_level, atr, exit_entry_price)
+            else:  # breakout
+                exit_entry_price = entry_price
+                params = BacktestStrategy.get_breakout_parameters(entry_level, atr, exit_entry_price)
+            
+            # Get exit reason to determine correct exit price
+            _, exit_reason = BacktestStrategy.should_exit_position(
+                row, entry_price, strategy_type, entry_level, 
+                i - df.index.get_loc(entry_date) if entry_date else 0
+            )
+            
+            # Use appropriate exit price based on exit reason
+            if exit_reason == 'take_profit':
+                exit_price = params['take_profit']
+            elif exit_reason == 'stop_loss':
+                exit_price = params['stop_loss']
+            else:  # time_exit
+                exit_price = current_price
+            
             proceeds = shares_held * exit_price
             cash += proceeds
             
@@ -175,7 +202,7 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
                 'return_pct': trade_return
             })
             
-            print(f"EXIT:  {date.strftime('%Y-%m-%d')} @ {exit_price:.0f}, "
+            print(f"EXIT:  {date.strftime('%Y-%m-%d')} @ {exit_price:.0f} ({exit_reason}), "
                   f"P&L: {trade_pnl:,.0f}, Return: {trade_return:.1f}%, "
                   f"New Cash: {cash:,.0f}")
             
