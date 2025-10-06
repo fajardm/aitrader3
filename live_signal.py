@@ -143,8 +143,9 @@ def display_signal(signal: dict):
         # Show which level is closer for potential resistance retest
         r1_distance = abs(signal['current_price'] - signal['r1_level'])
         r2_distance = abs(signal['current_price'] - signal['r2_level'])
+        min_distance = min(r1_distance, r2_distance)
         closer_level = "R1" if r1_distance < r2_distance else "R2"
-        print(f"Closer Level: {closer_level} (distance: Rp {min(r1_distance, r2_distance):,.0f})")
+        print(f"Closer Level: {closer_level} (distance: Rp {min_distance:,.0f})")
     else:  # PULLBACK
         # Get additional trend indicators from signal data
         rsi = signal['rsi14']
