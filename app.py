@@ -11,6 +11,10 @@ from flask import Flask, render_template, jsonify
 import sys
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add current directory to path to import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -20,11 +24,24 @@ from fetch_data import load_ohlcv
 from indicators import calculate_indicators
 from realistic_backtest import run_realistic_backtest
 
-app = Flask(__name__)
+# Configuration from environment variables
+START_DATE = os.getenv('DEFAULT_START_DATE', '2024-01-01')
+INITIAL_CASH = int(os.getenv('DEFAULT_INITIAL_CASH', 1000000))
+FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
 
-START_DATE = "2024-01-01"
-# Stock symbols to monitor
-STOCK_SYMBOLS = ["MPPA.JK", "WIRG.JK", "BUMI.JK", "INET.JK", "MAPA.JK", "MBMA.JK", "SMIL.JK", "BRMS.JK", "ARCI.JK", "NCKL.JK", "TOBA.JK", "EMTK.JK", "BTPS.JK", "CUAN.JK", "MDKA.JK", "IMPC.JK", "INDY.JK", "WIFI.JK", "ANTM.JK", "EMAS.JK", "BRPT.JK", "FILM.JK", "PTRO.JK"]
+# Stock symbols to monitor from environment variable
+STOCK_SYMBOLS_ENV = os.getenv('STOCK_SYMBOLS', '')
+STOCK_SYMBOLS = [symbol.strip() for symbol in STOCK_SYMBOLS_ENV.split(',')]
+
+app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Apply cache configuration from environment
+cache_refresh_minutes = int(os.getenv('CACHE_REFRESH_INTERVAL_MINUTES', 30))
+trading_start_hour = int(os.getenv('TRADING_START_HOUR', 9))
+trading_end_hour = int(os.getenv('TRADING_END_HOUR', 18))
+
+print(f"📊 Monitoring {len(STOCK_SYMBOLS)} stocks: {', '.join(STOCK_SYMBOLS)}")
 
 @app.route('/')
 def index():
@@ -43,9 +60,9 @@ def index():
                 df = calculate_indicators(df)
                 
                 # Get live signals
-                breakout_signal = check_breakout_signal(df, symbol, 1_000_000)
-                resistance_retest_signal = check_resistance_retest_signal(df, symbol, 1_000_000)
-                pullback_signal = check_pullback_signal(df, symbol, 1_000_000)
+                breakout_signal = check_breakout_signal(df, symbol, INITIAL_CASH)
+                resistance_retest_signal = check_resistance_retest_signal(df, symbol, INITIAL_CASH)
+                pullback_signal = check_pullback_signal(df, symbol, INITIAL_CASH)
                 
                 # Get current price and basic info
                 current_price = df.iloc[-1]['close']
@@ -95,15 +112,15 @@ def stock_detail(symbol):
         df = calculate_indicators(df)
         
         # Get live signals with full details
-        breakout_signal = check_breakout_signal(df, symbol, 1_000_000)
-        resistance_retest_signal = check_resistance_retest_signal(df, symbol, 1_000_000)
-        pullback_signal = check_pullback_signal(df, symbol, 1_000_000)
+        breakout_signal = check_breakout_signal(df, symbol, INITIAL_CASH)
+        resistance_retest_signal = check_resistance_retest_signal(df, symbol, INITIAL_CASH)
+        pullback_signal = check_pullback_signal(df, symbol, INITIAL_CASH)
         
         # Run backtest
         try:
-            resistance_retest_final, resistance_retest_return, resistance_retest_dd, resistance_retest_sharpe = run_realistic_backtest(df, "Resistance_Retest", 1_000_000)
-            pullback_final, pullback_return, pullback_dd, pullback_sharpe = run_realistic_backtest(df, "Pullback", 1_000_000)
-            breakout_final, breakout_return, breakout_dd, breakout_sharpe = run_realistic_backtest(df, "Breakout", 1_000_000)
+            resistance_retest_final, resistance_retest_return, resistance_retest_dd, resistance_retest_sharpe = run_realistic_backtest(df, "Resistance_Retest", INITIAL_CASH)
+            pullback_final, pullback_return, pullback_dd, pullback_sharpe = run_realistic_backtest(df, "Pullback", INITIAL_CASH)
+            breakout_final, breakout_return, breakout_dd, breakout_sharpe = run_realistic_backtest(df, "Breakout", INITIAL_CASH)
             
             backtest_results = {
                 'resistance_retest': {
@@ -128,9 +145,9 @@ def stock_detail(symbol):
         except Exception as e:
             print(f"Backtest error for {symbol}: {e}")
             backtest_results = {
-                'resistance_retest': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': 1_000_000},
-                'pullback': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': 1_000_000},
-                'breakout': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': 1_000_000}
+                'resistance_retest': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': INITIAL_CASH},
+                'pullback': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': INITIAL_CASH},
+                'breakout': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': INITIAL_CASH}
             }
         
         # Get current market data
@@ -201,6 +218,10 @@ def health():
 if __name__ == '__main__':
     # Respect environment variables for deployment platforms like Railway
     port = int(os.environ.get('PORT', 5001))
-    debug_env = os.environ.get('FLASK_DEBUG', '1')
-    debug_mode = debug_env in ('1', 'true', 'True')
+    # Use the FLASK_DEBUG from .env file, with fallback to environment
+    debug_mode = FLASK_DEBUG if 'FLASK_DEBUG' in os.environ else os.environ.get('FLASK_DEBUG', '1') in ('1', 'true', 'True')
+    
+    print(f"🚀 Starting Flask app with debug={debug_mode}, port={port}")
+    print(f"⚙️ Cache config: {cache_refresh_minutes}min refresh, {trading_start_hour}:00-{trading_end_hour}:00")
+    
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
