@@ -7,7 +7,7 @@ All application settings are loaded and validated in one place.
 """
 
 import os
-from typing import List, Optional
+from typing import List
 from dotenv import load_dotenv
 
 
@@ -25,29 +25,33 @@ class Config:
     
     def _load_config(self):
         """Load all configuration from environment variables"""
-        
         # Cache Configuration
-        self.cache_refresh_interval_minutes = int(os.getenv('CACHE_REFRESH_INTERVAL_MINUTES', 10))
-        self.trading_start_hour = int(os.getenv('TRADING_START_HOUR', 9))
-        self.trading_end_hour = int(os.getenv('TRADING_END_HOUR', 18))
+        # use string defaults so static analyzers don't warn about types
+        self.cache_refresh_interval_minutes = int(os.getenv('CACHE_REFRESH_INTERVAL_MINUTES', '10'))
+        self.trading_start_hour = int(os.getenv('TRADING_START_HOUR', '9'))
+        self.trading_end_hour = int(os.getenv('TRADING_END_HOUR', '18'))
         self.timezone = os.getenv('TIMEZONE', 'Asia/Jakarta')
-        
+
         # Flask Configuration
         self.flask_debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
         self.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-        
+
         # Data Source Settings
         self.default_start_date = os.getenv('DEFAULT_START_DATE', '2024-01-01')
-        
+
         # Trading Settings
-        self.default_initial_cash = int(os.getenv('DEFAULT_INITIAL_CASH', 1000000))
-        
+        self.default_initial_cash = int(os.getenv('DEFAULT_INITIAL_CASH', '1000000'))
+
         # Stock Symbols
         stock_symbols_env = os.getenv('STOCK_SYMBOLS', 'WIFI.JK')
         self.stock_symbols = [symbol.strip() for symbol in stock_symbols_env.split(',')]
-        
+
         # Server Configuration
-        self.port = int(os.getenv('PORT', 5001))
+        self.port = int(os.getenv('PORT', '5001'))
+
+        # Logging
+        self.log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+        self.log_format = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     
     def _validate_config(self):
         """Validate configuration values"""
@@ -77,7 +81,7 @@ class Config:
         # Check for invalid symbols (basic validation)
         for symbol in self.stock_symbols:
             if not symbol or len(symbol.strip()) == 0:
-                raise ValueError(f"Invalid empty stock symbol in STOCK_SYMBOLS")
+                raise ValueError("Invalid empty stock symbol in STOCK_SYMBOLS")
     
     @property
     def cache_refresh_interval(self) -> int:
@@ -136,6 +140,15 @@ def get_config() -> Config:
     return config
 
 
+def configure_logging():
+    """Configure root logging from config settings"""
+    import logging
+    cfg = get_config()
+    level = getattr(logging, cfg.log_level, logging.INFO)
+    logging.basicConfig(level=level, format=cfg.log_format)
+    logging.getLogger('investiny').setLevel(level)
+
+
 # Convenience functions for backward compatibility
 def get_stock_symbols() -> List[str]:
     """Get list of stock symbols to monitor"""
@@ -161,16 +174,16 @@ if __name__ == "__main__":
         test_config = Config()
         test_config.print_config_summary()
         print("\n✅ Configuration loaded successfully!")
-        
+
         # Test validation
         print("\n🔍 Testing configuration validation...")
         cache_config = test_config.get_cache_config()
         flask_config = test_config.get_flask_config()
         trading_config = test_config.get_trading_config()
-        
-        print(f"Cache Config: {cache_config}")
-        print(f"Flask Config: {flask_config}")
-        print(f"Trading Config: {trading_config}")
-        
-    except Exception as e:
+
+        print("Cache Config:", cache_config)
+        print("Flask Config:", flask_config)
+        print("Trading Config:", trading_config)
+
+    except ValueError as e:
         print(f"❌ Configuration error: {e}")

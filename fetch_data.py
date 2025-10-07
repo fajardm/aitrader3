@@ -1,6 +1,6 @@
 import pandas as pd
 import datetime as dt
-import os
+import logging
 from pathlib import Path
 from typing import Optional
 from investiny import search_assets, historical_data
@@ -32,7 +32,7 @@ def load_from_cache(ticker: str, start_date: str) -> Optional[pd.DataFrame]:
     cache_file = CACHE_DIR / get_cache_filename(ticker, start_date)
     
     if not cache_file.exists():
-        print(f"📁 No cache found for {ticker}")
+        logging.info("📁 No cache found for %s", ticker)
         return None
     
     try:
@@ -48,28 +48,28 @@ def load_from_cache(ticker: str, start_date: str) -> Optional[pd.DataFrame]:
         is_weekday = now_wib.weekday() < 5  # Monday=0, Friday=4
         is_trading_hours = config.trading_start_hour <= now_wib.hour < config.trading_end_hour
         
-        print(f"🕒 Current time {config.timezone}: {now_wib.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        print(f"📅 Weekday: {is_weekday}, Trading hours: {is_trading_hours} ({config.trading_start_hour}:00-{config.trading_end_hour}:00)")
+        logging.debug("🕒 Current time %s: %s", config.timezone, now_wib.strftime('%Y-%m-%d %H:%M:%S %Z'))
+        logging.debug("📅 Weekday: %s, Trading hours: %s (%s:00-%s:00)", is_weekday, is_trading_hours, config.trading_start_hour, config.trading_end_hour)
         
         if is_weekday and is_trading_hours:
             # During trading hours: refresh if older than configured minutes
             refresh_threshold = config.cache_refresh_interval_minutes * 60  # Convert to seconds
             if file_age.total_seconds() > refresh_threshold:
                 minutes_old = file_age.total_seconds() / 60
-                print(f"🔄 Cache for {ticker} is {minutes_old:.1f} minutes old, refreshing (threshold: {config.cache_refresh_interval_minutes} min)...")
+                logging.info("🔄 Cache for %s is %.1f minutes old, refreshing (threshold: %s min)...", ticker, minutes_old, config.cache_refresh_interval_minutes)
                 return None
         else:
             # Outside trading hours: use cache regardless of age
             hours_old = file_age.total_seconds() / 3600
-            print(f"📁 Using cache for {ticker} (outside trading hours, {hours_old:.1f}h old)")
+            logging.info("📁 Using cache for %s (outside trading hours, %.1fh old)", ticker, hours_old)
         
         # Load cache data (either during trading hours and within 10 min, or outside trading hours)
         df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
-        print(f"📁 Loaded {ticker} from cache ({len(df)} rows)")
+        logging.info("📁 Loaded %s from cache (%d rows)", ticker, len(df))
         return df
         
-    except Exception as e:
-        print(f"❌ Failed to load cache for {ticker}: {e}")
+    except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError) as e:
+        logging.error("❌ Failed to load cache for %s: %s", ticker, e)
         return None
 
 def save_to_cache(df: pd.DataFrame, ticker: str, start_date: str):
@@ -77,9 +77,9 @@ def save_to_cache(df: pd.DataFrame, ticker: str, start_date: str):
     try:
         cache_file = CACHE_DIR / get_cache_filename(ticker, start_date)
         df.to_csv(cache_file)
-        print(f"💾 Saved {ticker} to cache ({len(df)} rows)")
-    except Exception as e:
-        print(f"❌ Failed to save cache for {ticker}: {e}")
+        logging.info("💾 Saved %s to cache (%d rows)", ticker, len(df))
+    except OSError as e:
+        logging.error("❌ Failed to save cache for %s: %s", ticker, e)
 
 def get_investiny_id(ticker: str) -> Optional[int]:
     """
@@ -88,12 +88,12 @@ def get_investiny_id(ticker: str) -> Optional[int]:
     try:
         # Handle Indonesian stocks (.JK suffix)
         search_ticker = ticker.replace('.JK', '')
-        print(f"🔍 Searching for ticker: {search_ticker}")
+        logging.debug("🔍 Searching for ticker: %s", search_ticker)
         
         results = search_assets(search_ticker)
         
         if not results:
-            print(f"❌ No results found for ticker {ticker}")
+            logging.warning("❌ No results found for ticker %s", ticker)
             return None
         
         # Filter for Jakarta exchange
@@ -101,14 +101,15 @@ def get_investiny_id(ticker: str) -> Optional[int]:
         
         if filtered:
             asset_id = int(filtered[0]['ticker'])
-            print(f"✅ Found {ticker} with ID: {asset_id}")
+            logging.info("✅ Found %s with ID: %s", ticker, asset_id)
             return asset_id
         else:
-            print(f"❌ No Jakarta exchange results for {ticker}")
+            logging.warning("❌ No Jakarta exchange results for %s", ticker)
             return None
             
     except Exception as e:
-        print(f"❌ Error searching for {ticker}: {e}")
+        # Search may raise various runtime errors from the API client; keep broad here
+        logging.error("❌ Error searching for %s: %s", ticker, e)
         return None
 
 
@@ -120,7 +121,7 @@ def load_ohlcv(ticker: str, start: Optional[str] = None) -> Optional[pd.DataFram
     if not start:
         start = '2024-01-01'
     
-    print(f"📊 Loading OHLCV data for {ticker}...")
+    logging.info("📊 Loading OHLCV data for %s...", ticker)
     
     # Try loading from cache first
     cached_data = load_from_cache(ticker, start)
@@ -128,24 +129,24 @@ def load_ohlcv(ticker: str, start: Optional[str] = None) -> Optional[pd.DataFram
         return cached_data
     
     # If no cache, try live API
-    print(f"🌐 Fetching live data for {ticker} from API...")
+    logging.info("🌐 Fetching live data for %s from API...", ticker)
     
     try:
         # Get investiny ID
         investiny_id = get_investiny_id(ticker)
         if not investiny_id:
-            print(f"❌ Could not get investiny ID for {ticker}")
+            logging.error("❌ Could not get investiny ID for %s", ticker)
             return None
         
         # Convert dates to investiny format
         start_date = pd.to_datetime(start).strftime('%m/%d/%Y')
         end_date = pd.Timestamp.now().strftime('%m/%d/%Y')
         
-        print(f"📈 Fetching historical data from {start_date} to {end_date}...")
+        logging.info("📈 Fetching historical data from %s to %s...", start_date, end_date)
         data = historical_data(investiny_id, start_date, end_date)
         
         if not data:
-            print(f"❌ No historical data returned for {ticker}")
+            logging.warning("❌ No historical data returned for %s", ticker)
             return None
         
         # Convert to DataFrame
@@ -157,41 +158,41 @@ def load_ohlcv(ticker: str, start: Optional[str] = None) -> Optional[pd.DataFram
         # Save to cache for future use
         save_to_cache(df, ticker, start)
         
-        print(f"✅ Successfully loaded {len(df)} rows for {ticker}")
+        logging.info("✅ Successfully loaded %d rows for %s", len(df), ticker)
         return df
         
-    except Exception as e:
-        print(f"❌ Error fetching live data for {ticker}: {e}")
-        
+    except (ValueError, KeyError, OSError) as e:
+        logging.error("❌ Error fetching live data for %s: %s", ticker, e)
+
         # Try to use any existing cache even if old
-        print(f"🔄 Trying to use any existing cache for {ticker}...")
+        logging.info("🔄 Trying to use any existing cache for %s...", ticker)
         cache_file = CACHE_DIR / get_cache_filename(ticker, start)
         if cache_file.exists():
             try:
                 df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
-                print(f"📁 Using old cache for {ticker} ({len(df)} rows)")
+                logging.info("📁 Using old cache for %s (%d rows)", ticker, len(df))
                 return df
-            except Exception as cache_error:
-                print(f"❌ Failed to load old cache: {cache_error}")
-        
+            except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError) as cache_error:
+                logging.error("❌ Failed to load old cache: %s", cache_error)
+
         return None
 
 def list_cache_files():
     """List all cached data files"""
-    print(f"📁 Cache Directory: {CACHE_DIR}")
+    logging.info("📁 Cache Directory: %s", CACHE_DIR)
     cache_files = list(CACHE_DIR.glob("*.csv"))
     
     if not cache_files:
-        print("📁 No cache files found")
+        logging.info("📁 No cache files found")
         return
     
-    print(f"📁 Found {len(cache_files)} cache files:")
+    logging.info("📁 Found %d cache files:", len(cache_files))
     for file in cache_files:
         # Get file stats
         file_age = dt.datetime.now() - dt.datetime.fromtimestamp(file.stat().st_mtime)
         file_size = file.stat().st_size / 1024  # KB
         
-        print(f"  • {file.name} ({file_size:.1f} KB, {file_age.days} days old)")
+        logging.info("  • %s (%.1f KB, %d days old)", file.name, file_size, file_age.days)
 
 
 def clear_cache():
@@ -199,34 +200,34 @@ def clear_cache():
     cache_files = list(CACHE_DIR.glob("*.csv"))
     
     if not cache_files:
-        print("📁 No cache files to clear")
+        logging.info("📁 No cache files to clear")
         return
     
     for file in cache_files:
         file.unlink()
     
-    print(f"🗑️ Cleared {len(cache_files)} cache files")
+    logging.info("🗑️ Cleared %d cache files", len(cache_files))
 
 
 if __name__ == "__main__":
     # Test cache mechanism
-    print("🧪 Testing Cache Mechanism")
-    print("=" * 40)
+    logging.info("🧪 Testing Cache Mechanism")
+    logging.info("%s", "=" * 40)
     
     # List current cache
     list_cache_files()
     
     # Test data loading
-    print("\n📊 Testing data loading for WIFI.JK...")
+    logging.info("\n📊 Testing data loading for %s...", "WIFI.JK")
     df = load_ohlcv("WIFI.JK", start="2024-01-01")
     
     if df is not None:
-        print(f"✅ Successfully loaded {len(df)} rows")
-        print(f"📅 Date range: {df.index[0]} to {df.index[-1]}")
-        print(f"💰 Price range: {df['close'].min():.0f} - {df['close'].max():.0f}")
+        logging.info("✅ Successfully loaded %d rows", len(df))
+        logging.info("📅 Date range: %s to %s", df.index[0], df.index[-1])
+        logging.info("💰 Price range: %.0f - %.0f", df['close'].min(), df['close'].max())
     else:
-        print("❌ Failed to load data")
+        logging.error("❌ Failed to load data")
     
     # Show cache status
-    print("\n📁 Cache status after loading:")
+    logging.info("\n📁 Cache status after loading:")
     list_cache_files()

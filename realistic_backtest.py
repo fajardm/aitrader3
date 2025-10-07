@@ -81,7 +81,7 @@ def calculate_realistic_position_size(available_cash: float, entry_price: float,
 
 def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: float = 1_000_000):
     """Run backtest with REALISTIC cash management"""
-    print(f"\n=== {strategy_name} Strategy (Realistic) ===")
+    print("\n=== {} Strategy (Realistic) ===".format(strategy_name))
     
     strategy_type = strategy_name.lower()
     entries, exits = generate_realistic_signals(df, strategy_type)
@@ -219,23 +219,20 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
     if trade_log:
         trades_df = pd.DataFrame(trade_log)
         win_rate = (trades_df['pnl'] > 0).mean() * 100
-        avg_return = trades_df['return_pct'].mean()
-        
+
         winning_trades = trades_df[trades_df['pnl'] > 0]['pnl'].sum()
         losing_trades = abs(trades_df[trades_df['pnl'] < 0]['pnl'].sum())
         profit_factor = winning_trades / losing_trades if losing_trades > 0 else float('inf')
-        
+
         avg_investment = (trades_df['shares'] * trades_df['entry_price']).mean()
         avg_investment_pct = (avg_investment / initial_cash) * 100
-        
     else:
         win_rate = 0
-        avg_return = 0
         profit_factor = 0
         avg_investment = 0
         avg_investment_pct = 0
-    
-    print(f"\n=== REALISTIC RESULTS ===")
+
+    print("\n=== REALISTIC RESULTS ===")
     print(f"Total Return: {total_return:.2f}%")
     print(f"Sharpe Ratio: {sharpe:.2f}")
     print(f"Max Drawdown: {max_dd:.2f}%")
@@ -280,12 +277,12 @@ def main():
     breakout_final, breakout_return, breakout_dd, breakout_sharpe = run_realistic_backtest(df, "Breakout", args.cash)
     
     # Summary comparison
-    print(f"\n" + "="*60)
-    print(f"=== FINAL REALISTIC COMPARISON ===")
+    print("\n" + "="*60)
+    print("=== FINAL REALISTIC COMPARISON ===")
     print(f"Pullback (Support): {pullback_return:.1f}% return, {pullback_dd:.1f}% DD, {pullback_sharpe:.2f} Sharpe")
     print(f"Resistance Retest: {resistance_retest_return:.1f}% return, {resistance_retest_dd:.1f}% DD, {resistance_retest_sharpe:.2f} Sharpe")
     print(f"Breakout: {breakout_return:.1f}% return, {breakout_dd:.1f}% DD, {breakout_sharpe:.2f} Sharpe")
-    print(f"="*60)
+    print("="*60)
 
 
 if __name__ == '__main__':

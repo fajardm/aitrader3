@@ -7,7 +7,7 @@ Flask web application with:
 - /stock/{symbol}: Detailed backtest and signal information
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template
 import sys
 import os
 from datetime import datetime
@@ -23,6 +23,10 @@ from config import get_config
 
 # Load configuration
 config = get_config()
+# Configure logging early
+from config import configure_logging
+configure_logging()
+import logging
 
 # Setup Flask app
 app = Flask(__name__)
@@ -74,7 +78,7 @@ def index():
                     'pullback_signal': pullback_signal['signal']
                 })
                 
-            except Exception as e:
+            except (ValueError, OSError, KeyError) as e:
                 print(f"Error processing {symbol}: {e}")
                 continue
         
@@ -83,8 +87,9 @@ def index():
         return render_template('index.html', 
                              stocks=stocks_data, 
                              current_time=current_time)
-        
+
     except Exception as e:
+        # Keep broad to surface unexpected runtime errors to the caller
         return f"<h1>Error</h1><p>{str(e)}</p>", 500
 
 @app.route('/stock/<symbol>')
@@ -131,6 +136,7 @@ def stock_detail(symbol):
                 }
             }
         except Exception as e:
+            # Backtest may raise various runtime errors; keep broad but logged
             print(f"Backtest error for {symbol}: {e}")
             backtest_results = {
                 'resistance_retest': {'total_return': 0, 'max_drawdown': 0, 'sharpe_ratio': 0, 'final_capital': config.default_initial_cash},
@@ -207,6 +213,6 @@ if __name__ == '__main__':
     # Use configuration from config class
     flask_config = config.get_flask_config()
     
-    print(f"🚀 Starting Flask app with debug={flask_config['debug']}, port={flask_config['port']}")
+    logging.info("🚀 Starting Flask app with debug=%s, port=%s", flask_config['debug'], flask_config['port'])
     
     app.run(debug=flask_config['debug'], host='0.0.0.0', port=flask_config['port'])

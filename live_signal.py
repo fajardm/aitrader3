@@ -100,35 +100,32 @@ def display_signal(signal: dict):
             closest_level = "R3"
         print(f"Closest Level: {closest_level} (distance: Rp {min_distance:,.0f})")
     elif signal['strategy'] == 'RESISTANCE_RETEST':
-        # Get additional trend indicators
+        # Get additional trend indicators for resistance retest
         rsi = signal['rsi14']
-        
-        # Comprehensive trend status
+
+        # Build trend signals
         trend_signals = []
         if signal['current_price'] > signal['ema20']:
             trend_signals.append("EMA20+")
         else:
             trend_signals.append("EMA20-")
-            
+
         if rsi > 50:
             trend_signals.append("RSI+")
         else:
             trend_signals.append("RSI-")
-            
-        # Check resistance level position (above R1 is bullish structure)
+
+        # Check resistance level position
         resistance_strength = 0
-        if signal['current_price'] > signal['r1_level']:
+        if signal['current_price'] > signal.get('r1_level', 0):
             resistance_strength += 1
-        if signal['current_price'] > signal['r2_level']:
+        if signal['current_price'] > signal.get('r2_level', 0):
             resistance_strength += 1
-            
-        if resistance_strength >= 1:
-            trend_signals.append("RES+")
-        else:
-            trend_signals.append("RES-")
-        
+
+        trend_signals.append("RES+" if resistance_strength >= 1 else "RES-")
+
         # Determine overall trend
-        bullish_count = sum(1 for signal_item in trend_signals if signal_item.endswith("+"))
+        bullish_count = sum(1 for item in trend_signals if item.endswith("+"))
         if bullish_count >= 3:
             trend_status = "🟢 STRONG BULLISH"
         elif bullish_count == 2:
@@ -137,88 +134,37 @@ def display_signal(signal: dict):
             trend_status = "🟠 MIXED/NEUTRAL"
         else:
             trend_status = "🔴 BEARISH"
-            
+
         print(f"Overall Trend: {trend_status} ({'/'.join(trend_signals)})")
-        
-        # Show which level is closer for potential resistance retest
-        r1_distance = abs(signal['current_price'] - signal['r1_level'])
-        r2_distance = abs(signal['current_price'] - signal['r2_level'])
-        min_distance = min(r1_distance, r2_distance)
-        closer_level = "R1" if r1_distance < r2_distance else "R2"
-        print(f"Closer Level: {closer_level} (distance: Rp {min_distance:,.0f})")
-    else:  # PULLBACK
-        # Get additional trend indicators from signal data
-        rsi = signal['rsi14']
-        
-        # Comprehensive trend status
-        trend_signals = []
-        if signal['current_price'] > signal['ema20']:
-            trend_signals.append("EMA20+")
+
+        # Show which resistance level is closer for potential retest
+        r1_distance = abs(signal['current_price'] - signal.get('r1_level', signal['current_price']))
+        r2_distance = abs(signal['current_price'] - signal.get('r2_level', signal['current_price']))
+        if r1_distance <= r2_distance:
+            closest_level = "R1"
+            min_distance = r1_distance
         else:
-            trend_signals.append("EMA20-")
-            
-        if rsi > 50:
-            trend_signals.append("RSI+")
-        else:
-            trend_signals.append("RSI-")
-            
-        # Check if price is above multiple support levels (bullish structure)
-        support_strength = 0
-        if signal['current_price'] > signal['s1_level']:
-            support_strength += 1
-        if signal['current_price'] > signal['s2_level']:
-            support_strength += 1
-        if signal['current_price'] > signal['s3_level']:
-            support_strength += 1
-            
-        if support_strength >= 2:
-            trend_signals.append("SUP+")
-        else:
-            trend_signals.append("SUP-")
-        
-        # Determine overall trend
-        bullish_count = sum(1 for signal_item in trend_signals if signal_item.endswith("+"))
-        if bullish_count >= 3:
-            trend_status = "🟢 STRONG BULLISH"
-        elif bullish_count == 2:
-            trend_status = "🟡 BULLISH"
-        elif bullish_count == 1:
-            trend_status = "🟠 MIXED/NEUTRAL"
-        else:
-            trend_status = "🔴 BEARISH"
-            
-        print(f"Overall Trend: {trend_status} ({'/'.join(trend_signals)})")
-        
-        # Show which support level is closest for potential pullback
-        s1_distance = abs(signal['current_price'] - signal['s1_level'])
-        s2_distance = abs(signal['current_price'] - signal['s2_level'])
-        s3_distance = abs(signal['current_price'] - signal['s3_level'])
-        
-        min_distance = min(s1_distance, s2_distance, s3_distance)
-        if min_distance == s1_distance:
-            closest_level = "S1"
-        elif min_distance == s2_distance:
-            closest_level = "S2"
-        else:
-            closest_level = "S3"
-        print(f"Closest Support: {closest_level} (distance: Rp {min_distance:,.0f})")
+            closest_level = "R2"
+            min_distance = r2_distance
+
+        print(f"Closest Level: {closest_level} (distance: Rp {min_distance:,.0f})")
     
     if signal['signal'] == 'BUY':
-        print(f"\n🚀 BUY SIGNAL DETECTED!")
-        
+        print("\n🚀 BUY SIGNAL DETECTED!")
+
         # Add timing guidance
         if signal['strategy'] == 'BREAKOUT':
             entry_level_name = signal.get('entry_level', 'R3')
-            print(f"⏰ TIMING: Execute immediately if during market hours")
+            print("⏰ TIMING: Execute immediately if during market hours")
             print(f"📍 ACTION: {entry_level_name} breakout confirmed - buy at current price")
-            
+
             # Add specific guidance based on breakout level
             if entry_level_name == 'R1':
-                print(f"💡 STRATEGY: Early momentum entry - watch for quick moves")
+                print("💡 STRATEGY: Early momentum entry - watch for quick moves")
             elif entry_level_name == 'R2':
-                print(f"💡 STRATEGY: Confirmed breakout - balanced risk/reward")
+                print("💡 STRATEGY: Confirmed breakout - balanced risk/reward")
             else:  # R3
-                print(f"💡 STRATEGY: Strong momentum - high confidence trade")
+                print("💡 STRATEGY: Strong momentum - high confidence trade")
         elif signal['strategy'] == 'RESISTANCE_RETEST':
             entry_level_name = signal.get('entry_level', 'R2')
             print(f"⏰ TIMING: Wait for price to reach {entry_level_name} level")
@@ -227,8 +173,8 @@ def display_signal(signal: dict):
             entry_level_name = signal.get('entry_level', 'S2')
             print(f"⏰ TIMING: Wait for pullback to {entry_level_name} support level")
             print(f"📍 ACTION: Set limit order at {entry_level_name} or watch for bounce from support")
-        
-        print(f"\n📋 TRADING PLAN:")
+
+        print("\n📋 TRADING PLAN:")
         print(f"Entry Price: Rp {signal['entry_price']:,.0f}")
         entry_price = signal['entry_price']
         sl_pct = ((entry_price - signal['stop_loss'])/entry_price*100) if entry_price > 0 else 0
@@ -240,7 +186,7 @@ def display_signal(signal: dict):
         print(f"Risk Amount: Rp {signal['risk_amount']:,.0f} ({signal['risk_percent']:.2f}%)")
         print(f"Max Hold Period: {signal['max_hold_days']} days")
     else:
-        print(f"\n⏳ NO SIGNAL - Wait for better entry")
+        print("\n⏳ NO SIGNAL - Wait for better entry")
 
     # Pivot Points
     print(f"\nPivot Point: Rp {signal['pivot_point']:,.0f} {signal['pivot_point_status']}")
@@ -253,7 +199,7 @@ def display_signal(signal: dict):
 
     # RSI Analysis
     rsi = signal['rsi14']
-    print(f"\n📊 TECHNICAL ANALYSIS:")
+    print("\n📊 TECHNICAL ANALYSIS:")
     print(f"RSI(14): {rsi:.1f}", end="")
     if rsi >= 70:
         print(" 🔴 OVERBOUGHT - Consider selling pressure")
@@ -279,7 +225,7 @@ def display_signal(signal: dict):
         print(" 🟢 LOW VOLATILITY - Stable price action")
     
     # Combined RSI + ATR insight
-    print(f"\n💡 MARKET CONDITION:")
+    print("\n💡 MARKET CONDITION:")
     if rsi >= 70 and atr_percent >= 4:
         print("⚠️  Overbought + High Volatility - Risk of sharp pullback")
     elif rsi <= 30 and atr_percent >= 4:
@@ -325,7 +271,7 @@ def main():
             pullback_signal = check_pullback_signal(df, args.symbol, args.cash)
             display_signal(pullback_signal)
         
-    except Exception as e:
+    except RuntimeError as e:
         print(f"❌ Error: {e}")
         print("Make sure you have internet connection and the investiny package installed")
         print("Install investiny with: pip install git+https://github.com/fajardm/investiny.git")
