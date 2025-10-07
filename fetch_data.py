@@ -5,16 +5,17 @@ from pathlib import Path
 from typing import Optional
 from investiny import search_assets, historical_data
 import pytz
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Configuration will be loaded when first used
+_config = None
 
-# Configuration settings from environment variables with fallbacks
-CACHE_REFRESH_INTERVAL_MINUTES = int(os.getenv('CACHE_REFRESH_INTERVAL_MINUTES', 30))
-TRADING_START_HOUR = int(os.getenv('TRADING_START_HOUR', 9))
-TRADING_END_HOUR = int(os.getenv('TRADING_END_HOUR', 18))
-TIMEZONE = os.getenv('TIMEZONE', 'Asia/Jakarta')
+def get_config():
+    """Get configuration instance (lazy loading to avoid circular imports)"""
+    global _config
+    if _config is None:
+        from config import get_config as _get_config
+        _config = _get_config()
+    return _config
 
 # Create cache directory
 CACHE_DIR = Path(__file__).parent / "data_cache"
@@ -37,24 +38,25 @@ def load_from_cache(ticker: str, start_date: str) -> Optional[pd.DataFrame]:
     try:
         # Check cache age (refresh only during trading hours)
         # Get current time in configured timezone
-        wib_tz = pytz.timezone(TIMEZONE)
+        config = get_config()
+        wib_tz = pytz.timezone(config.timezone)
         now_wib = dt.datetime.now(wib_tz)
         
         file_age = now_wib - dt.datetime.fromtimestamp(cache_file.stat().st_mtime, tz=wib_tz)
         
-        # Check if it's trading hours (Monday-Friday, configurable hours WIB)
+        # Check if it's trading hours (Monday-Friday, configurable hours)
         is_weekday = now_wib.weekday() < 5  # Monday=0, Friday=4
-        is_trading_hours = TRADING_START_HOUR <= now_wib.hour < TRADING_END_HOUR
+        is_trading_hours = config.trading_start_hour <= now_wib.hour < config.trading_end_hour
         
-        print(f"🕒 Current time WIB: {now_wib.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        print(f"📅 Weekday: {is_weekday}, Trading hours: {is_trading_hours} ({TRADING_START_HOUR}:00-{TRADING_END_HOUR}:00)")
+        print(f"🕒 Current time {config.timezone}: {now_wib.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        print(f"📅 Weekday: {is_weekday}, Trading hours: {is_trading_hours} ({config.trading_start_hour}:00-{config.trading_end_hour}:00)")
         
         if is_weekday and is_trading_hours:
             # During trading hours: refresh if older than configured minutes
-            refresh_threshold = CACHE_REFRESH_INTERVAL_MINUTES * 60  # Convert to seconds
+            refresh_threshold = config.cache_refresh_interval_minutes * 60  # Convert to seconds
             if file_age.total_seconds() > refresh_threshold:
                 minutes_old = file_age.total_seconds() / 60
-                print(f"🔄 Cache for {ticker} is {minutes_old:.1f} minutes old, refreshing (threshold: {CACHE_REFRESH_INTERVAL_MINUTES} min)...")
+                print(f"🔄 Cache for {ticker} is {minutes_old:.1f} minutes old, refreshing (threshold: {config.cache_refresh_interval_minutes} min)...")
                 return None
         else:
             # Outside trading hours: use cache regardless of age
