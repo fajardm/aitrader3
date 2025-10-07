@@ -161,11 +161,6 @@
 
 {% block extra_scripts %}
 <script>
-    // Auto-refresh every 30 seconds unless filtering is active
-    var autoRefresh = true;
-    var refreshTimer = setTimeout(function(){
-        if(autoRefresh) window.location.reload();
-    }, 30000);
 
     function applyFilters() {
         var symbol = document.getElementById('filter-symbol').value.trim().toUpperCase();
@@ -185,24 +180,12 @@
                 card.style.display = 'none';
             }
         });
-        
-        // Disable auto-refresh when filters are active
-        autoRefresh = (symbol === '' && signal === 'ALL');
-        if (!autoRefresh) {
-            clearTimeout(refreshTimer);
-        }
     }
 
     function clearFilters() {
         document.getElementById('filter-symbol').value = '';
         document.getElementById('filter-signal').value = 'ALL';
         applyFilters();
-        
-        // Re-enable auto-refresh
-        autoRefresh = true;
-        refreshTimer = setTimeout(function(){
-            if(autoRefresh) window.location.reload();
-        }, 30000);
     }
 
     // Event listeners

@@ -74,23 +74,6 @@
             </div>
         </div>
     </footer>
-
-    <!-- Auto-refresh time -->
-    <script>
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('id-ID');
-            const timeElement = document.getElementById('current-time');
-            if (timeElement) {
-                timeElement.textContent = timeString;
-            }
-        }
-        
-        // Update time every second
-        setInterval(updateTime, 1000);
-        updateTime();
-    </script>
-    
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
