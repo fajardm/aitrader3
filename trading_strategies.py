@@ -344,51 +344,6 @@ class TradingStrategy:
         else:
             return 0, 0.0
 
-
-class BacktestStrategy(TradingStrategy):
-    """Extended strategy class specifically for backtesting with position tracking"""
-    
-    @staticmethod
-    def should_exit_position(row: pd.Series, entry_price: float, strategy_type: str, 
-                           triggered_level: str, days_held: int) -> Tuple[bool, str]:
-        """
-        Check if position should be exited based on stop loss, take profit, or time
-        
-        Args:
-            row: Current market data
-            entry_price: Price when position was entered
-            strategy_type: 'breakout' or 'pullback'
-            triggered_level: Level that triggered entry ('R1', 'R2', 'R3')
-            days_held: Number of days position has been held
-            
-        Returns:
-            Tuple of (should_exit, exit_reason)
-        """
-        atr = row['atr14']
-        
-        # Get strategy parameters
-        if strategy_type == "resistance_retest":
-            params = TradingStrategy.get_resistance_retest_parameters(triggered_level, atr, entry_price)
-        elif strategy_type == "pullback":
-            params = TradingStrategy.get_pullback_parameters(triggered_level, atr, entry_price)
-        else:  # breakout
-            params = TradingStrategy.get_breakout_parameters(triggered_level, atr, entry_price)
-        
-        sl_price = params['stop_loss']
-        tp_price = params['take_profit']
-        max_days = params['max_days']
-        
-        # Check exit conditions
-        if row['low'] <= sl_price:
-            return True, 'stop_loss'
-        elif row['high'] >= tp_price:
-            return True, 'take_profit'
-        elif days_held >= max_days:
-            return True, 'time_exit'
-        else:
-            return False, 'hold'
-
-
 class LiveSignalStrategy(TradingStrategy):
     """Extended strategy class specifically for live signal generation"""
     

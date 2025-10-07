@@ -2,7 +2,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from fetch_data import load_ohlcv
-from trading_strategies import BacktestStrategy
+from trading_strategies import TradingStrategy
 from indicators import calculate_indicators
 
 
@@ -21,11 +21,11 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
         if not position_open:
             # Check for entry signal using centralized logic
             if strategy_type.lower() == "resistance_retest":
-                has_signal = BacktestStrategy.has_resistance_retest_signal(row)
+                has_signal = TradingStrategy.has_resistance_retest_signal(row)
             elif strategy_type.lower() == "pullback":
-                has_signal = BacktestStrategy.has_pullback_signal(row)
+                has_signal = TradingStrategy.has_pullback_signal(row)
             else:  # breakout
-                has_signal = BacktestStrategy.has_breakout_signal(row)
+                has_signal = TradingStrategy.has_breakout_signal(row)
             
             if has_signal:
                 position_open = True
@@ -34,14 +34,14 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
                 
                 # Store which level was triggered for exit calculation
                 if strategy_type.lower() == "resistance_retest":
-                    retest_status = BacktestStrategy.check_resistance_retest_conditions(row)
-                    triggered_level = BacktestStrategy.determine_resistance_retest_level(retest_status)
+                    retest_status = TradingStrategy.check_resistance_retest_conditions(row)
+                    triggered_level = TradingStrategy.determine_resistance_retest_level(retest_status)
                 elif strategy_type.lower() == "pullback":
-                    pullback_status = BacktestStrategy.check_pullback_conditions(row)
-                    triggered_level = BacktestStrategy.determine_pullback_level(pullback_status)
+                    pullback_status = TradingStrategy.check_pullback_conditions(row)
+                    triggered_level = TradingStrategy.determine_pullback_level(pullback_status)
                 else:  # breakout
-                    breakout_status = BacktestStrategy.check_breakout_conditions(row)
-                    triggered_level = BacktestStrategy.determine_breakout_level(breakout_status)
+                    breakout_status = TradingStrategy.check_breakout_conditions(row)
+                    triggered_level = TradingStrategy.determine_breakout_level(breakout_status)
                 
                 # Store triggered level for all strategies
                 df.loc[df.index[i], 'triggered_level'] = triggered_level
@@ -54,8 +54,8 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
             entry_idx = i - days_held
             triggered_level = df.iloc[entry_idx].get('triggered_level', 'R3' if strategy_type == 'breakout' else 'R2')
             
-            # Check if position should exit using centralized logic
-            should_exit, exit_reason = BacktestStrategy.should_exit_position(
+            # Check if position should exit using local logic
+            should_exit, exit_reason = should_exit_position(
                 row, entry_price, strategy_type, triggered_level, days_held
             )
             
@@ -70,7 +70,7 @@ def generate_realistic_signals(df: pd.DataFrame, strategy_type: str) -> tuple[pd
 
 def calculate_realistic_position_size(available_cash: float, entry_price: float, sl_price: float, risk_pct: float = 0.02):
     """Calculate realistic position size with proper cash management - using centralized logic"""
-    shares, investment = BacktestStrategy.calculate_position_size(available_cash, entry_price, sl_price, risk_pct)
+    shares, investment = TradingStrategy.calculate_position_size(available_cash, entry_price, sl_price, risk_pct)
     
     # Apply cash constraint (leave 5% buffer)
     max_investment = available_cash * 0.95
@@ -114,32 +114,31 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
             
             # Determine triggered level using centralized logic
             if strategy_type.lower() in ["resistance_retest"]:
-                retest_status = BacktestStrategy.check_resistance_retest_conditions(row)
-                entry_level = BacktestStrategy.determine_resistance_retest_level(retest_status)
+                retest_status = TradingStrategy.check_resistance_retest_conditions(row)
+                entry_level = TradingStrategy.determine_resistance_retest_level(retest_status)
             elif strategy_type.lower() == "pullback":
-                pullback_status = BacktestStrategy.check_pullback_conditions(row)
-                entry_level = BacktestStrategy.determine_pullback_level(pullback_status)
+                pullback_status = TradingStrategy.check_pullback_conditions(row)
+                entry_level = TradingStrategy.determine_pullback_level(pullback_status)
             else:  # breakout
-                breakout_status = BacktestStrategy.check_breakout_conditions(row)
-                entry_level = BacktestStrategy.determine_breakout_level(breakout_status)
+                breakout_status = TradingStrategy.check_breakout_conditions(row)
+                entry_level = TradingStrategy.determine_breakout_level(breakout_status)
             
             # Get strategy parameters using centralized logic
             if strategy_type.lower() in ["resistance_retest"]:
                 # For resistance retest, entry price is the resistance level
                 entry_price = row[f'R{entry_level[-1]}']  # Extract number from 'R1' or 'R2'
-                params = BacktestStrategy.get_resistance_retest_parameters(entry_level, atr, entry_price)
+                params = TradingStrategy.get_resistance_retest_parameters(entry_level, atr, entry_price)
             elif strategy_type.lower() == "pullback":
                 # For pullback, entry price is the support level
                 entry_price = row[f'S{entry_level[-1]}']  # Extract number from 'S1', 'S2', or 'S3'
-                params = BacktestStrategy.get_pullback_parameters(entry_level, atr, entry_price)
+                params = TradingStrategy.get_pullback_parameters(entry_level, atr, entry_price)
             else:  # breakout
                 entry_price = current_price
-                params = BacktestStrategy.get_breakout_parameters(entry_level, atr, entry_price)
+                params = TradingStrategy.get_breakout_parameters(entry_level, atr, entry_price)
             
             sl_price = params['stop_loss']
             tp_price = params['take_profit']
             
-            # Calculate position size based on CURRENT available cash
             shares = calculate_realistic_position_size(cash, entry_price, sl_price, 0.02)
             investment = shares * entry_price
             risk_amount = shares * abs(entry_price - sl_price)
@@ -164,7 +163,7 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
             except (KeyError, ValueError):
                 days_held = 0
             
-            _, exit_reason = BacktestStrategy.should_exit_position(
+            _, exit_reason = should_exit_position(
                 row, entry_price, strategy_type, entry_level, days_held
             )
             
@@ -246,10 +245,37 @@ def run_realistic_backtest(df: pd.DataFrame, strategy_name: str, initial_cash: f
     return final_value, total_return, max_dd, sharpe
 
 
+def should_exit_position(row, entry_price: float, strategy_type: str, triggered_level: str, days_held: int):
+    """Check if position should be exited - backtest specific logic with intraday execution"""
+    
+    # Get parameters based on strategy
+    atr = row['atr14']  # Fixed: use correct column name
+    
+    if strategy_type.lower() == "pullback":
+        params = TradingStrategy.get_pullback_parameters(triggered_level, atr, entry_price)
+    elif strategy_type.lower() == "resistance_retest":
+        params = TradingStrategy.get_resistance_retest_parameters(triggered_level, atr, entry_price)
+    else:  # breakout
+        params = TradingStrategy.get_breakout_parameters(triggered_level, atr, entry_price)
+    
+    # Check exit conditions using REALISTIC intraday prices
+    if row['low'] <= params['stop_loss']:      # Use LOW for stop loss detection
+        return True, "stop_loss"
+    
+    # Check take profit using HIGH (more realistic than close)
+    if row['high'] >= params['take_profit']:   # Use HIGH for take profit detection
+        return True, "take_profit"
+    
+    # Check max holding days
+    if days_held >= params['max_days']:
+        return True, "max_days"
+    
+    return False, ""
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--symbol', required=True, 
-                       help='Stock symbol (e.g., WIFI.JK, BBCA.JK, GOTO.JK)')
+    parser.add_argument('--symbol', required=True, help='Stock symbol (e.g., BBRI.JK)')
     parser.add_argument('--cash', type=float, default=1_000_000, help='Initial cash')
     args = parser.parse_args()
     
