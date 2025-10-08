@@ -864,8 +864,8 @@
                 {% if stock.levels.ema10 %}EMA10: {{ stock.levels.ema10 }},{% endif %}
                 {% if stock.levels.ema20 %}EMA20: {{ stock.levels.ema20 }},{% endif %}
                 {% if stock.levels.ema50 %}EMA50: {{ stock.levels.ema50 }},{% endif %}
-                {% if stock.levels.ema100 %}EMA100: {{ stock.levels.ema100 }},{% endif %}
-                {% if stock.levels.ema200 %}EMA200: {{ stock.levels.ema200 }}{% endif %}
+                {% if stock.levels.ema100 > 0 %}EMA100: {{ stock.levels.ema100 }},{% endif %}
+                {% if stock.levels.ema200 > 0 %}EMA200: {{ stock.levels.ema200 }}{% endif %}
             },
             rsi: {{ stock.indicators.rsi }},
             atr: {{ stock.indicators.atr }}
