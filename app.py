@@ -16,7 +16,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from live_signal import check_breakout_signal, check_resistance_retest_signal, check_pullback_signal
-from fetch_data import load_ohlcv
+from fetch_data import load_ohlcv, clear_cache
 from indicators import calculate_indicators
 from realistic_backtest import run_realistic_backtest
 from config import get_config
@@ -44,7 +44,8 @@ def index():
         for symbol in config.stock_symbols:
             try:
                 # Get current data
-                df = load_ohlcv(symbol, config.default_start_date)
+                end_date = datetime.now().strftime('%Y-%m-%d')
+                df = load_ohlcv(symbol, config.default_start_date, end_date)
                 if df is None or len(df) < 50:
                     continue
                 
@@ -97,7 +98,8 @@ def stock_detail(symbol):
     """Detailed view for a specific stock with backtest and signal information"""
     try:
         # Get current data
-        df = load_ohlcv(symbol, config.default_start_date)
+        end_date = datetime.now().strftime('%m-%d-%Y')
+        df = load_ohlcv(symbol, config.default_start_date, end_date)
         if df is None or len(df) < 50:
             return f"<h1>Error</h1><p>Insufficient data for {symbol}</p>", 404
         
@@ -203,6 +205,26 @@ def stock_detail(symbol):
         
     except Exception as e:
         return f"<h1>Error</h1><p>Error loading data for {symbol}: {str(e)}</p>", 500
+
+@app.route('/refetch-historical')
+def refetch_historical():
+    """Endpoint to refetch historical data for all stocks"""
+    clear_cache()
+    try:
+        for symbol in config.stock_symbols:
+            try:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+                df = load_ohlcv(symbol, config.default_start_date, end_date)
+                if df is None or len(df) < 1:
+                    logging.warning("Insufficient data for %s during refetch.", symbol)
+                    continue
+                logging.info("Refetched historical data for %s, %d records.", symbol, len(df))
+            except Exception as e:
+                logging.error("Error refetching %s: %s", symbol, e)
+                continue
+        return "<h1>Refetch Completed</h1><p>Historical data refetch attempted for all symbols.</p>", 200
+    except Exception as e:
+        return f"<h1>Error</h1><p>{str(e)}</p>", 500
 
 @app.route('/health')
 def health():
