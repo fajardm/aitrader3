@@ -85,9 +85,21 @@ def index():
         
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+        # Calculate statistics
+        total_stocks = len(stocks_data)
+        total_buy = len([stock for stock in stocks_data if stock['overall_signal'] == 'BUY'])
+        total_hold = len([stock for stock in stocks_data if stock['overall_signal'] == 'HOLD'])
+        
+        stats = {
+            'total_stocks': total_stocks,
+            'total_buy': total_buy,
+            'total_hold': total_hold
+        }
+        
         return render_template('index.html', 
                              stocks=stocks_data, 
-                             current_time=current_time)
+                             current_time=current_time,
+                             stats=stats)
 
     except Exception as e:
         # Keep broad to surface unexpected runtime errors to the caller
@@ -98,10 +110,12 @@ def stock_detail(symbol):
     """Detailed view for a specific stock with backtest and signal information"""
     try:
         # Get current data
-        end_date = datetime.now().strftime('%m-%d-%Y')
+        end_date = datetime.now().strftime('%Y-%m-%d')
         df = load_ohlcv(symbol, config.default_start_date, end_date)
         if df is None or len(df) < 50:
             return f"<h1>Error</h1><p>Insufficient data for {symbol}</p>", 404
+        
+        last_date = df.index[-1].strftime('%Y-%m-%d')
         
         # Calculate indicators
         df = calculate_indicators(df)
@@ -164,12 +178,6 @@ def stock_detail(symbol):
         rsi = latest['rsi14']
         atr = latest['atr14']
         
-        # Recent price action (last 5 days)
-        recent_data = df.tail(5)[['close', 'R1', 'R2', 'R3', 'rsi14', 'atr14']].round(2)
-        # Add date column for template display
-        recent_data_with_dates = recent_data.copy()
-        recent_data_with_dates['date'] = recent_data.index.strftime('%Y-%m-%d')
-        
         stock_data = {
             'symbol': symbol,
             'current_price': current_price,
@@ -196,9 +204,9 @@ def stock_detail(symbol):
             'resistance_retest_signal': resistance_retest_signal,
             'pullback_signal': pullback_signal,
             'backtest': backtest_results,
-            'recent_data': recent_data_with_dates.to_dict('records'),
-            'recent_data_html': recent_data.to_html(classes='table table-sm table-striped'),
-            'last_update': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'last_update': last_date,
+            'start_date': config.default_start_date,
+            'end_date': end_date
         }
         
         return render_template('stock_detail.html', stock=stock_data)
