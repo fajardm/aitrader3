@@ -48,6 +48,8 @@ def index():
                 df = load_ohlcv(symbol, config.default_start_date, end_date)
                 if df is None or len(df) < 50:
                     continue
+
+                last_date = df.index[-1].strftime('%Y-%m-%d')
                 
                 # Calculate indicators
                 df = calculate_indicators(df)
@@ -76,7 +78,8 @@ def index():
                     'signal_color': signal_color,
                     'breakout_signal': breakout_signal['signal'],
                     'resistance_retest_signal': resistance_retest_signal['signal'],
-                    'pullback_signal': pullback_signal['signal']
+                    'pullback_signal': pullback_signal['signal'],
+                    'last_update': last_date
                 })
                 
             except (ValueError, OSError, KeyError) as e:
