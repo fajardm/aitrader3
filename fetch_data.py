@@ -36,6 +36,19 @@ def load_from_cache(ticker: str, start_date: str, end_date: str) -> Optional[pd.
     
     try:
         df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
+        
+        col_aliases = {
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume',
+        }
+
+        for src, dst in col_aliases.items():
+            if src in df.columns and dst not in df.columns:
+                df[dst] = df[src]
+
         logging.info("📁 Loaded %s from cache (%d rows)", ticker, len(df))
         return df
         
@@ -131,6 +144,18 @@ def load_ohlcv(ticker: str, start_date: Optional[str] = None, end_date: Optional
         
         # Save to cache for future use
         save_to_cache(df, ticker, start_date, end_date)
+
+        col_aliases = {
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume',
+        }
+
+        for src, dst in col_aliases.items():
+            if src in df.columns and dst not in df.columns:
+                df[dst] = df[src]
         
         logging.info("✅ Successfully loaded %d rows for %s", len(df), ticker)
         return df

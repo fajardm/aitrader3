@@ -45,6 +45,14 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['S1'] = 2 * df['P'] - df['high'].shift(1)
     df['S2'] = df['P'] - (df['high'].shift(1) - df['low'].shift(1))
     df['S3'] = df['low'].shift(1) - 2 * (df['high'].shift(1) - df['P'])
+    # lower case keys
+    df['p']= df['P']
+    df['r1']= df['R1']
+    df['r2']= df['R2']
+    df['r3']= df['R3']
+    df['s1']= df['S1']
+    df['s2']= df['S2']
+    df['s3']= df['S3']
     
     return df
 

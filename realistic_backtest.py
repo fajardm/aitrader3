@@ -283,7 +283,7 @@ def main():
     print(f"Loading live data for: {args.symbol}")
     end_date = pd.Timestamp.now().strftime('%Y-%m-%d')
 
-    df = load_ohlcv(args.symbol, "2024-01-01", end_date)
+    df = load_ohlcv(args.symbol, "2025-01-01", end_date='2025-07-31')
 
     df = calculate_indicators(df)
     
